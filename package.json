@@ -24,7 +24,7 @@
       "test": "jest --coverage"
    },
    "devDependencies": {
-      "@toba/develop": "^6.7.8",
+      "@toba/develop": "^6.7.12",
       "@toba/test": "^4.1.17"
    },
    "repository": {
@@ -32,7 +32,8 @@
       "url": "https://github.com/toba/osm-router"
    },
    "dependencies": {
-      "@toba/node-tools": "^1.4.13",
+      "@toba/map": "^2.4.4",
+      "@toba/node-tools": "^1.4.14",
       "@types/node": "^12.12.22"
    }
 }

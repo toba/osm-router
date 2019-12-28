@@ -1,4 +1,6 @@
 {
    "jest.enableCodeLens": true,
-   "typescript.tsdk": "node_modules/typescript/lib"
+   "files.associations": {
+      "*.osm": "xml"
+   }
 }
