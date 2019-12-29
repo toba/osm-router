@@ -87,6 +87,25 @@ export const enum WayType {
    Minor = 'unclassified'
 }
 
+/**
+ * Common tags relevant to routing.
+ */
+export const enum Tag {
+   /** `WayType` value */
+   RoadType = 'highway',
+   RailType = 'railway',
+   JunctionType = 'junction',
+   OneWay = 'oneway',
+   /** Restriction exceptions */
+   Exception = 'except',
+   Type = 'type',
+   /** Indicates disallowed transportation types */
+   Restriction = 'restriction'
+}
+
+/**
+ * Modes of transportion.
+ */
 export const enum Transport {
    Car = 'car',
    Bus = 'bus',
@@ -113,6 +132,12 @@ export const enum AccessibleTo {
    MotorVehicle = 'motor_vehicle',
    ServiceVehicle = 'psv',
    Vehicle = 'vehicle'
+}
+
+export const enum ItemType {
+   Node = 'node',
+   Way = 'way',
+   Relation = 'relation'
 }
 
 export const enum Access {
@@ -229,11 +254,10 @@ export const enum Action {
    Delete = 'delete'
 }
 
-export const enum RelationRole {
+export const enum Role {
    From = 'from',
    Via = 'via',
-   To = 'to',
-   None = ''
+   To = 'to'
 }
 
 /**
@@ -241,11 +265,8 @@ export const enum RelationRole {
  */
 export interface OsmItem {
    id: number;
-   visible?: boolean;
-   //user?: string;
-   //version?: number;
+   //visible?: boolean;
    timestamp?: number;
-   //changeset?: number;
    tags?: { [key: string]: string | null };
 }
 
@@ -253,16 +274,13 @@ export interface OsmItem {
 //    tags?: { [key: string]: string | null };
 // }
 
+/**
+ * Single point on the map.
+ */
 export interface Node extends OsmItem {
-   //uid?: number;
-   lat?: number;
-   lon?: number;
+   lat: number;
+   lon: number;
    open?: boolean;
-   ref?: number;
-   //comments_count?: number;
-   //action?: string;
-   //created_at?: number;
-   //closed_at?: number;
    date?: number;
 }
 
@@ -271,9 +289,18 @@ export interface Way extends OsmItem {
 }
 
 export interface RelationMember {
-   role?: RelationRole;
+   nodes: Node[];
+   role?: Role;
 }
 
 export interface Relation extends OsmItem {
    members: RelationMember[];
+}
+
+export type Hash<T> = { [id: number]: T };
+
+export interface Tile {
+   nodes: Hash<Node>;
+   ways: Hash<Way>;
+   relations: Relation[];
 }

@@ -1,195 +1,170 @@
 import { forEach } from '@toba/node-tools';
-import { xml } from '@toba/map';
-import { Node, Way, Relation, OsmItem } from './types';
+import transform from 'camaro';
+import {
+   Node,
+   Way,
+   Role,
+   Relation,
+   OsmItem,
+   Tile,
+   Hash,
+   WayType,
+   ItemType
+} from './types';
 
-const eachElement = (
-   items: HTMLCollectionOf<Element>,
-   fn: (el: Element) => void
-) => {
-   for (let i = 0; i < items.length; i++) {
-      fn(items.item(i)!);
-   }
+interface ItemXML {
+   id: number;
+   visible?: boolean;
+   tags: TagXML[];
+}
+
+interface TagXML {
+   key: string;
+   value: string;
+}
+
+interface NodeXML extends ItemXML {
+   lat: number;
+   lon: number;
+}
+
+interface WayXML extends ItemXML {
+   nodes: number[];
+}
+
+interface MemberXML {
+   type: string;
+   ref: number;
+   role: string;
+}
+
+interface RelationXML extends ItemXML {
+   members: MemberXML[];
+}
+
+interface OsmXML {
+   nodes: NodeXML[];
+   ways: WayXML[];
+   relations: RelationXML[];
+}
+
+/* eslint-disable @typescript-eslint/camelcase */
+const wayTypeSynonyms: { [key: string]: string } = {
+   motorway_link: WayType.Freeway,
+   trunk_link: WayType.Trunk,
+   primary_link: WayType.Primary,
+   secondary_link: WayType.Secondary,
+   tertiary_link: WayType.Tertiary,
+   minor: WayType.Minor,
+   pedestrian: WayType.FootPath,
+   platform: WayType.FootPath
 };
 
-function addTags(el: Element, osm: OsmItem): void {
-   const tagElements = el.getElementsByTagName('tag');
+/**
+ * @param xml Pre-parsed object having the shape of OSM XML
+ */
+export function normalizeOsmXML(xml: OsmXML): Tile {
+   const nodes = new Object(null) as Hash<Node>;
+   const ways = new Object(null) as Hash<Way>;
 
-   if (tagElements.length > 0) {
-      osm.tags = {};
-   } else {
-      return;
-   }
-
-   eachElement(tagElements, tagEl => {
-      const key = tagEl.getAttribute('k');
-      if (key !== null) {
-         osm.tags![key] = tagEl.getAttribute('v');
+   const addTags = <T extends OsmItem>(
+      tags: TagXML[],
+      item: T,
+      synonyms: { [alt: string]: string } = {}
+   ): T => {
+      if (tags !== undefined && tags.length > 0) {
+         const out = new Object(null) as { [key: string]: string | null };
+         forEach(tags, t => (out[t.key] = synonyms[t.value] ?? t.value));
+         item.tags = out;
       }
-   });
-}
+      return item;
+   };
 
-function addOsmNode(el: Element, nodes: Map<number, Node>): void {
-   const n: Node = { id: 0 };
-
-   forEach(el.getAttributeNames(), key => {
-      const a: string | null = el.getAttribute(key);
-
-      if (a === null) {
-         return;
-      }
-
-      switch (key) {
-         case 'id':
-         case 'ref':
-            n[key] = parseInt(a, 10);
-            break;
-         case 'lat':
-         case 'lon':
-            n[key] = parseFloat(a);
-            break;
-         case 'open':
-         case 'visible':
-            n[key] = a == 'true';
-            break;
-         default:
-            break;
-      }
-   });
-   if (n.id !== 0) {
-      console.error('node missing ID');
-   } else {
-      addTags(el, n);
-      nodes.set(n.id, n);
-   }
-}
-
-function addOsmWay(
-   el: Element,
-   ways: Map<number, Way>,
-   nodes: Map<number, Node>
-): void {
-   const w: Way = { id: 0, nodes: [] };
-   const id = el.getAttribute('id');
-
-   if (id === null) {
-      console.error('Way is missing ID');
-      return;
-   }
-   const nodeRefs = el.getElementsByTagName('nd');
-
-   if (nodeRefs.length == 0) {
-      console.error('Way contains no nodes');
-      return;
-   }
-
-   eachElement(nodeRefs, nd => {
-      const nodeID = nd.getAttribute('ref');
-
-      if (nodeID !== null) {
-         const node = nodes.get(parseInt(nodeID, 10));
-         if (node !== undefined) {
-            w.nodes.push(node);
-            return;
-         }
-         console.error(`Unable to find node ${nodeID} for way ${id}`);
-      }
+   forEach(xml.nodes, n => {
+      nodes[n.id] = addTags<Node>(n.tags, {
+         id: n.id,
+         lat: n.lat,
+         lon: n.lon
+      });
    });
 
-   if (w.nodes.length == 0) {
-      console.error(`No nodes found for way ${id}`);
-      return;
-   }
-
-   w.id = parseInt(id, 10);
-   addTags(el, w);
-
-   ways.set(w.id, w);
-}
-
-function addOsmRelation(
-   el: Element,
-   relations: Map<number, Relation>,
-   ways: Map<number, Way>,
-   nodes: Map<number, Node>
-): void {
-   const r: Relation = { id: 0, members: [] };
-   const id = el.getAttribute('id');
-
-   if (id === null) {
-      console.error('Relation is missing ID');
-      return;
-   }
-   const memberElements = el.getElementsByTagName('member');
-
-   if (memberElements.length == 0) {
-      console.error('Relation has no members');
-      return;
-   }
-
-   eachElement(memberElements, member => {
-      const ref = member.getAttribute('ref');
-
-      if (ref === null) {
-         console.error(`Relation ${id} has an empty member reference`);
-         return;
-      }
-
-      const type = member.getAttribute('type');
-      const refID = parseInt(ref, 10);
-
-      switch (type) {
-         case 'way':
-            const w = ways.get(refID);
-            break;
-         case 'node':
-            const n = nodes.get(refID);
-            break;
-         default:
-            console.error(`No type supplied for member ${ref} in way ${id}`);
-            break;
-      }
+   forEach(xml.ways, w => {
+      ways[w.id] = addTags<Way>(
+         w.tags,
+         { id: w.id, nodes: w.nodes.map(id => nodes[id]) },
+         wayTypeSynonyms
+      );
    });
 
-   r.id = parseInt(id, 10);
-   addTags(el, r);
-
-   relations.set(r.id, r);
-}
-
-function parseOsmNodes(list: HTMLCollectionOf<Element>): Map<number, Node> {
-   const nodes = new Map<number, Node>();
-   eachElement(list, el => addOsmNode(el, nodes));
-   return nodes;
-}
-
-function parseOsmWays(
-   list: HTMLCollectionOf<Element>,
-   nodes: Map<number, Node>
-): Map<number, Way> {
-   const ways = new Map<number, Way>();
-   eachElement(list, el => addOsmWay(el, ways, nodes));
-   return ways;
-}
-
-function parseOsmRelations(
-   items: HTMLCollectionOf<Element>,
-   nodes: Map<number, Node>,
-   ways: Map<number, Way>
-): Map<number, Relation> {
-   const relations = new Map<number, Relation>();
-   eachElement(items, el => addOsmRelation(el, relations, ways, nodes));
-   return relations;
-}
-
-export function parseFile(xmlText: string) {
-   const el = xml.fromText(xmlText);
-   const nodes = parseOsmNodes(el.getElementsByTagName('node'));
-   const ways = parseOsmWays(el.getElementsByTagName('way'), nodes);
-   const relations = parseOsmRelations(
-      el.getElementsByTagName('relation'),
-      nodes,
-      ways
+   const relations: Relation[] = xml.relations.map(r =>
+      addTags<Relation>(r.tags, {
+         id: r.id,
+         members: r.members.map(m => ({
+            role: m.role as Role,
+            nodes: m.type == ItemType.Way ? ways[m.ref].nodes : [nodes[m.ref]]
+         }))
+      })
    );
 
-   return { nodes, ways, relations };
+   return {
+      nodes,
+      ways,
+      relations
+   };
+}
+
+/**
+ * @see https://github.com/tuananh/camaro/blob/develop/API.md
+ */
+export function parseOsmXML(xmlText: string): Tile {
+   const template = {
+      nodes: [
+         '/osm/node',
+         {
+            id: 'number(@id)',
+            lat: 'number(@lat)',
+            lon: 'number(@lon)'
+            //visible: 'boolean(@visible = "true")'
+         }
+      ],
+      ways: [
+         '/osm/way',
+         {
+            id: 'number(@id)',
+            //visible: 'boolean(@visible = "true")',
+            nodes: ['nd', 'number(@ref)'],
+            tags: [
+               'tag',
+               {
+                  key: '@k',
+                  value: '@v'
+               }
+            ]
+         }
+      ],
+      relations: [
+         '/osm/relation',
+         {
+            id: 'number(@id)',
+            //visible: 'boolean(@visible = "true")',
+            members: [
+               'member',
+               {
+                  type: '@type',
+                  ref: 'number(@ref)',
+                  role: '@role'
+               }
+            ],
+            tags: [
+               'tag',
+               {
+                  key: '@k',
+                  value: '@v'
+               }
+            ]
+         }
+      ]
+   };
+
+   return normalizeOsmXML(transform(xmlText, template) as OsmXML);
 }
