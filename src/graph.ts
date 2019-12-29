@@ -17,12 +17,15 @@ import {
    accessDenied,
    WayType,
    Tag,
-   Role,
-   Hash
+   Role
 } from './types';
 import { is } from '.';
 
 const defaultZoom = 15;
+// https://www.measurethat.net/Benchmarks/Show/4797/1/js-regex-vs-startswith-vs-indexof
+const noAccess = /^no_/;
+const onlyAccess = /^only_/;
+const accessRestriction = /^(no|only)_/;
 
 /**
  * Calculate OSM tile coordinate for location and zoom.
@@ -63,7 +66,7 @@ function tileBoundary(
    return [left, bottom, right, top];
 }
 
-export class Router {
+export class Graph {
    /** Weights assigned to node-node travel */
    routing: { [fromNodeID: number]: { [toNodeID: number]: number } };
    /** Node `[latitude, longitude]` keyed to ID */
@@ -90,13 +93,13 @@ export class Router {
          this.spec = transport;
       } else {
          this.transport = transport;
-         // TODO: clone
+         // TODO: clone instead of assign
          this.spec = routeModes[transport];
       }
    }
 
    /**
-    * Whether mode of transportation is allowed along the given OSM `way` as
+    * Whether mode of transportation is allowed along the given OSM `Way` as
     * indicated by its tags.
     */
    private isAccessible(tags: Tags): boolean {
@@ -111,9 +114,7 @@ export class Router {
       return allowed;
    }
 
-   nodeLatLon(nodeID: number) {
-      return this.locations[nodeID];
-   }
+   nodeLatLon = (nodeID: number) => this.locations[nodeID];
 
    /**
     * Ensure tiles are available for routing.
@@ -135,6 +136,13 @@ export class Router {
       forEachKeyValue(tile.ways, (_, way) => this.addWay(way));
       forEach(tile.relations, this.findRestrictions);
    }
+
+   /**
+    * @param p1 Latitude/Longitude tuple
+    * @param p2 Latitude/Longitude tuple
+    */
+   distance = (p1: [number, number], p2: [number, number]) =>
+      measure.distanceLatLon(p1, p2);
 
    /* eslint-disable prefer-destructuring, dot-notation */
    addWay(way: Way) {
@@ -230,10 +238,7 @@ export class Router {
 
       if (
          restrictionType === null ||
-         !(
-            restrictionType.startsWith('no_') ||
-            restrictionType.startsWith('only_')
-         )
+         !accessRestriction.test(restrictionType)
       ) {
          // missing or inapplicable restriction type
          return;
@@ -302,6 +307,7 @@ export class Router {
       }
 
       const fromNodeIDs = (): number[] => [
+         // TODO: this will error on array length 1
          nodes[0][nodes[0].length - 2].id,
          nodes[1][0].id
       ];
@@ -328,10 +334,10 @@ export class Router {
        */
       const toNodeID = (): number => nodes[nodes.length - 1][1].id;
 
-      if (type.startsWith('no_')) {
+      if (noAccess.test(type)) {
          const key: number[] = [...fromNodeIDs(), ...viaNodeIDs(), toNodeID()];
          this.forbiddenMoves[key.join(',')] = true;
-      } else if (type.startsWith('only_')) {
+      } else if (onlyAccess.test(type)) {
          const key: number[] = [...fromNodeIDs(), toNodeID()];
          this.mandatoryMoves[key.join(',')] = viaNodeIDs();
       }

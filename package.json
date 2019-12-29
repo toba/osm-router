@@ -32,7 +32,7 @@
       "url": "https://github.com/toba/osm-router"
    },
    "dependencies": {
-      "@toba/map": "^2.5.0",
+      "@toba/map": "^2.5.1",
       "@toba/node-tools": "^1.4.17",
       "@types/node": "^12.12.22",
       "camaro": "^3.0.19"
