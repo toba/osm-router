@@ -8,7 +8,7 @@ const osmFile = path.join(__dirname, '__mocks__', 'data.osm');
 
 it('converts OSM XML to an object', async () => {
    const osmText: string = await readFileText(osmFile);
-   const osm: Tile = parseOsmXML(osmText);
+   const osm: Tile = await parseOsmXML(osmText);
 
    expect(osm.nodes.size).toBe(189);
    expect(osm.ways.size).toBe(33);

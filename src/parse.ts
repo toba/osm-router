@@ -1,5 +1,5 @@
-import { forEach, filterEach } from '@toba/node-tools';
-import transform from 'camaro';
+import { forEach } from '@toba/node-tools';
+import { transform } from 'camaro';
 import {
    Node,
    Way,
@@ -139,7 +139,7 @@ export function normalizeOsmXML(xml: OsmXML): Tile {
  * @see https://github.com/tuananh/camaro/blob/develop/API.md
  * @see https://devhints.io/xpath
  */
-export function parseOsmXML(xmlText: string): Tile {
+export async function parseOsmXML(xmlText: string): Promise<Tile> {
    const template = {
       nodes: [
          '/osm/node',
@@ -186,5 +186,6 @@ export function parseOsmXML(xmlText: string): Tile {
       ]
    };
 
-   return normalizeOsmXML(transform(xmlText, template) as OsmXML);
+   const osmXML = await transform(xmlText, template);
+   return normalizeOsmXML(osmXML);
 }

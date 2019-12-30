@@ -31,10 +31,11 @@
       "type": "git",
       "url": "https://github.com/toba/osm-router"
    },
+   "#": "https://github.com/nodejs/node-gyp/wiki/Updating-npm's-bundled-node-gyp",
    "dependencies": {
       "@toba/map": "^2.5.1",
-      "@toba/node-tools": "^1.4.17",
+      "@toba/node-tools": "^1.4.19",
       "@types/node": "^12.12.22",
-      "camaro": "^3.0.19"
+      "camaro": "^4.1.2"
    }
 }
