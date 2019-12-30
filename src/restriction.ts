@@ -1,15 +1,15 @@
 import { intersects, forEach } from '@toba/node-tools';
 import { Relation, Tag, Transport, RouteConfig, TagMap } from './types';
-import { Sequence } from './sequence';
+import { Segment } from './segment';
 
 // https://www.measurethat.net/Benchmarks/Show/4797/1/js-regex-vs-startswith-vs-indexof
-const noPrefix = /^no_/;
-const onlyPrefix = /^only_/;
-const accessPrefix = /^(no|only)_/;
+const forbidPrefix = /^no_/;
+const requirePrefix = /^only_/;
+const restrictPrefix = /^(no|only)_/;
 const noAccess = /^(no|private)$/;
 
 /**
- * Whether mode of transportation is allowed along the given OSM `Way` as
+ * Whether mode of transportation is allowed along the given OSM way as
  * indicated by its tags.
  */
 export function allowTransport(wayTags: TagMap, accessTypes: Tag[]): boolean {
@@ -48,17 +48,10 @@ export class Restrictions {
    }
 
    fromRelation(r: Relation) {
-      if (r.tags === undefined) {
-         // XPath parsing should mean tags are always present in relations
-         return;
-      }
-      const accessException = r.tags[Tag.Exception];
+      const exceptions = r.tags[Tag.Exception]?.split(';') ?? [];
 
-      if (
-         accessException !== undefined &&
-         intersects(accessException.split(';'), this.config.canUse)
-      ) {
-         // ignore restrictions if access type is an explicit exception
+      if (intersects(exceptions, this.config.canUse)) {
+         // ignore restrictions if usable access is specifically exempted
          return;
       }
 
@@ -73,31 +66,47 @@ export class Restrictions {
          return;
       }
 
+      /**
+       * General restriction or restriction on specific mode of transportation
+       */
       const restrictionType =
          r.tags[specificRestriction] ?? r.tags[Tag.Restriction];
 
       if (
          restrictionType === undefined ||
-         !accessPrefix.test(restrictionType)
+         !restrictPrefix.test(restrictionType)
       ) {
          // missing or inapplicable restriction type
          return;
       }
 
-      const sequence = new Sequence(r);
+      const segment = new Segment(r);
 
-      if (sequence.sort().valid) {
-         if (noPrefix.test(restrictionType)) {
+      if (segment.sort().valid) {
+         if (forbidPrefix.test(restrictionType)) {
+            // forbid restriction is identified by text list of node IDs
             const key: number[] = [
-               ...sequence.fromNodes(),
-               ...sequence.viaNodes(),
-               sequence.toNode()
+               ...segment.fromNodes(),
+               ...segment.viaNodes(),
+               segment.toNode()
             ];
             this.forbidden.set(key.join(','), true);
-         } else if (onlyPrefix.test(restrictionType)) {
-            const key: number[] = [...sequence.fromNodes(), sequence.toNode()];
-            this.mandatory.set(key.join(','), sequence.viaNodes());
+         } else if (requirePrefix.test(restrictionType)) {
+            // mandatory restriction is identified by text list of node IDs
+            // at start and end of segment
+            const key: number[] = [...segment.fromNodes(), segment.toNode()];
+            this.mandatory.set(key.join(','), segment.viaNodes());
          }
+      } else {
+         console.error(`Relation ${r.id} could not be processed`);
       }
+   }
+
+   eachForbidden(fn: (enabled: boolean, pattern: string) => void) {
+      this.forbidden.forEach(fn);
+   }
+
+   eachMandatory(fn: (nodes: number[], pattern: string) => void) {
+      this.mandatory.forEach(fn);
    }
 }

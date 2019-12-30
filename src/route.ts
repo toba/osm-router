@@ -1,6 +1,7 @@
 import { removeItem, forEach } from '@toba/node-tools';
 import { Graph } from './graph';
 import { PlanItem } from './plan';
+import { nextToLast } from './segment';
 
 export const enum Status {
    NoRoute,
@@ -8,9 +9,9 @@ export const enum Status {
    GaveUp
 }
 
-class Route extends Graph {
+export class Route extends Graph {
    /**
-    *
+    * Find route between two known nodes.
     * @param startNode Node ID
     * @param endNode Node ID
     */
@@ -22,47 +23,52 @@ class Route extends Graph {
       let closeNode = true;
 
       const addToPlans = (
-         start: number,
-         end: number,
+         fromNode: number,
+         toNode: number,
          plan: PlanItem,
-         weight = 1
+         preference = 1
       ) => {
-         if (weight == 0) {
+         if (preference == 0) {
             // ignore non-traversible route
             return;
          }
-         if (!(this.locations.has(end) && this.locations.has(start))) {
-            // nodes must have positions
+         if (!(this.nodes.has(toNode) && this.nodes.has(fromNode))) {
+            // nodes must be known
             return;
          }
 
-         const endLatLon = this.locations.get(end)!;
-         const startLatLon = this.locations.get(start)!;
+         const toLatLon = this.nodes.get(toNode)!.point();
+         const fromLatLon = this.nodes.get(fromNode)!.point();
+         /** Sequence of node IDs */
          const sequence = plan.nodes;
 
-         if (sequence.length >= 2 && sequence[sequence.length - 2] == end) {
-            // do not turn around at a node (i.e. a-b-a)
+         if (nextToLast(sequence) == toNode) {
+            // do not turn around at a node (i.e. a->b->a)
             return;
          }
 
-         this.ensureTiles(endLatLon[0], endLatLon[1]);
+         this.ensureTiles(toLatLon[0], toLatLon[1]);
 
-         const edgeCost = this.distance(startLatLon, endLatLon) / weight;
+         /**
+          * Higher preference means lower cost.
+          */
+         const edgeCost = this.distance(fromLatLon, toLatLon) / preference;
          const totalCost = plan.cost + edgeCost;
          const heuristicCost =
-            totalCost + this.distance(endLatLon, this.locations.get(firstEnd)!);
-         const allNodes = [end].concat(plan.nodes);
+            totalCost +
+            this.distance(toLatLon, this.nodes.get(firstEnd)!.point());
+         const allNodes = [toNode].concat(plan.nodes);
          const nodeList = allNodes.join(',');
 
          /* eslint-disable consistent-return */
-         this.forbiddenMoves.forEach((active, pattern) => {
+         this.restrictions.eachForbidden((active, pattern) => {
             if (active && nodeList.includes(pattern)) {
                closeNode = false;
             }
          });
 
          // check if there is already a way to the end node
-         const endQueueItem = plans.find(q => q.endNode === end);
+         const endQueueItem = plans.find(q => q.endNode === toNode);
 
          if (endQueueItem !== undefined) {
             if (endQueueItem.cost < totalCost) {
@@ -75,13 +81,10 @@ class Route extends Graph {
 
          let forceNextNodes: number[] = [];
 
-         if (
-            plan.mandatoryNodes !== undefined &&
-            plan.mandatoryNodes.length > 0
-         ) {
+         if (plan.mandatoryNodes.length > 0) {
             forceNextNodes = plan.mandatoryNodes;
          } else {
-            this.mandatoryMoves.forEach((nodes, pattern) => {
+            this.restrictions.eachMandatory((nodes, pattern) => {
                if (nodeList.endsWith(pattern)) {
                   closeNode = false;
                   // TODO: need to copy not assign
@@ -94,7 +97,7 @@ class Route extends Graph {
             cost: totalCost,
             heuristicCost,
             nodes: allNodes,
-            endNode: end,
+            endNode: toNode,
             mandatoryNodes: forceNextNodes
          };
 
@@ -117,15 +120,14 @@ class Route extends Graph {
          }
       };
 
-      if (!this.preferences.has(startNode)) {
-         throw new Error(`Node ${startNode} does not exist in the graph`);
-      }
+      this.preferences.ensure(startNode, endNode);
 
       if (startNode == endNode) {
          return [Status.NoRoute, []];
       }
 
-      this.preferences.get(startNode)!.forEach((weight, linkedNode) => {
+      // start new plan for each node connected to the startNode
+      this.preferences.eachConnection(startNode, (preference, linkedNode) => {
          addToPlans(
             startNode,
             linkedNode,
@@ -134,12 +136,13 @@ class Route extends Graph {
                nodes: [startNode],
                mandatoryNodes: []
             },
-            weight
+            preference
          );
       });
 
       // limit search duration
       let count = 0;
+
       while (count < 1000000) {
          count++;
          closeNode = true;
@@ -169,22 +172,24 @@ class Route extends Graph {
 
             if (
                this.preferences.has(nextNode) &&
-               this.preferences.has(consideredNode) &&
-               this.preferences.get(consideredNode)!.has(nextNode)
+               this.preferences.has(consideredNode, nextNode)
             ) {
                addToPlans(
                   consideredNode,
                   nextNode,
                   nextPlan,
-                  this.preferences.get(consideredNode)!.get(nextNode)
+                  this.preferences.value(consideredNode, nextNode)
                );
             }
          } else if (this.preferences.has(consideredNode)) {
-            this.preferences.get(consideredNode)!.forEach((weight, nextNode) => {
-               if (!closed.has(nextNode)) {
-                  addToPlans(consideredNode, nextNode, nextPlan, weight);
+            this.preferences.eachConnection(
+               consideredNode,
+               (weight, nextNode) => {
+                  if (!closed.has(nextNode)) {
+                     addToPlans(consideredNode, nextNode, nextPlan, weight);
+                  }
                }
-            });
+            );
          }
 
          if (closeNode) {

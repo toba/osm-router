@@ -1,4 +1,4 @@
-import { is } from '@toba/node-tools';
+import { is, forEach } from '@toba/node-tools';
 import { Node, Tag, Way, WayType, Transport, RouteConfig } from './types';
 import { allowTransport } from './restriction';
 
@@ -20,6 +20,17 @@ export class Preferences {
       this.connections = new Map();
       this.transport = transport;
       this.config = config;
+   }
+
+   /**
+    * Throw error if any of the given nodes aren't connected.
+    */
+   ensure(...nodes: number[]) {
+      forEach(nodes, id => {
+         if (!this.has(id)) {
+            throw new Error(`Node ${id} does not exist in the graph`);
+         }
+      });
    }
 
    /**
@@ -85,6 +96,20 @@ export class Preferences {
       return way.nodes;
    }
 
+   has(nodeID: number, connectedNodeID?: number) {
+      const exists = this.connections.has(nodeID);
+      return connectedNodeID === undefined
+         ? exists
+         : this.connections.get(nodeID)!.has(connectedNodeID);
+   }
+
+   /**
+    * Preference for the connection between `nodeID` and `connectedNodeID`. Zero
+    * is returned if the nodes aren't connected.
+    */
+   value = (nodeID: number, connectedNodeID: number): number =>
+      this.connections.get(nodeID)?.get(connectedNodeID) ?? 0;
+
    /**
     * Add weighted connection between `from` and `to` node.
     */
@@ -93,6 +118,17 @@ export class Preferences {
          this.connections.set(from.id, new Map());
       }
       this.connections.get(from.id)!.set(to.id, cost);
+   }
+
+   eachConnection(
+      nodeID: number,
+      fn: (weight: number, linkedNode: number) => void
+   ) {
+      const nodes = this.connections.get(nodeID);
+      if (nodes === undefined) {
+         return;
+      }
+      nodes.forEach(fn);
    }
 
    /**

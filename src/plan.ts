@@ -3,7 +3,7 @@ export interface PlanItem {
    nodes: number[];
    cost: number;
    heuristicCost?: number;
-   /** Node IDs */
+   /** IDs of nodes that must be traversed in this plan */
    mandatoryNodes: number[];
    endNode?: number;
 }

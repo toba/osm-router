@@ -1,7 +1,6 @@
 import '@toba/test';
 import { readFileText } from '@toba/node-tools';
 import path from 'path';
-import { measure } from '@toba/map';
 import { Graph } from './graph';
 import { Tile, Transport, Point } from './types';
 import { parseOsmXML } from './parse';
@@ -17,6 +16,7 @@ beforeAll(async () => {
 it('finds node nearest to coordinates', () => {
    const carGraph = new Graph(Transport.Car, tile);
    const busGraph = new Graph(Transport.Bus, tile);
+
    const p1 = [53.7926757, 21.5732485] as Point;
    const p2 = [53.799199, 21.5726826] as Point;
 

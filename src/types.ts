@@ -128,20 +128,6 @@ export const enum Transport {
    Train = 'train'
 }
 
-// export const enum AccessibleTo {
-//    AllTerrainVehicle = 'atv',
-//    Any = 'access',
-//    Bicycle = 'bicycle',
-//    Bus = 'bus',
-//    Foot = 'foot',
-//    Horse = 'horse',
-//    MotorCar = 'motorcar',
-//    Motorcycle = 'motorcycle',
-//    MotorVehicle = 'motor_vehicle',
-//    ServiceVehicle = 'psv',
-//    Vehicle = 'vehicle'
-// }
-
 export const enum ItemType {
    Node = 'node',
    Way = 'way',
@@ -184,11 +170,14 @@ export interface RouteConfig {
 
 export type RouteMode = { [key: string]: RouteConfig };
 
-export const enum Action {
-   Modify = 'modify',
-   Delete = 'delete'
-}
+// export const enum Action {
+//    Modify = 'modify',
+//    Delete = 'delete'
+// }
 
+/**
+ * Relation member roles.
+ */
 export const enum Role {
    From = 'from',
    Via = 'via',
@@ -233,6 +222,11 @@ export interface RelationMember {
 
 export interface Relation extends OsmItem {
    members: RelationMember[];
+   /**
+    * Tags applied to relation. XPath OSM parsing only allows relations that
+    * have tags.
+    */
+   tags: TagMap;
 }
 
 export interface Tile {
