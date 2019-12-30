@@ -30,6 +30,9 @@ export class Weights {
       this.config = config;
    }
 
+   /**
+    * Create weighted node connections from way.
+    */
    fromWay(way: Way) {
       let oneway = '';
       let weight = 0;

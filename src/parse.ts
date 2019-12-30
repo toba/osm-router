@@ -1,4 +1,4 @@
-import { forEach, filterEach } from '@toba/node-tools';
+import { forEach } from '@toba/node-tools';
 import transform from 'camaro';
 import {
    Node,
@@ -65,25 +65,31 @@ function point(this: Node): [number, number] {
 }
 
 /**
+ * Convert tags to plain object and add to item.
+ * @param synonyms Optionally replace key value with a synonym
+ */
+export const addTags = <T extends OsmItem>(
+   tags: TagXML[],
+   item: T,
+   synonyms: { [alt: string]: string } = {}
+): T => {
+   if (tags !== undefined && tags.length > 0) {
+      const out = new Object(null) as { [key: string]: string | undefined };
+
+      forEach(tags, t => {
+         out[t.key] = synonyms[t.value] ?? t.value;
+      });
+      item.tags = out;
+   }
+   return item;
+};
+
+/**
  * @param xml Pre-parsed object having the shape of OSM XML
  */
 export function normalizeOsmXML(xml: OsmXML): Tile {
    const nodes = new Map<number, Node>();
    const ways = new Map<number, Way>();
-
-   /** Convert tags to plain object and add to item. */
-   const addTags = <T extends OsmItem>(
-      tags: TagXML[],
-      item: T,
-      synonyms: { [alt: string]: string } = {}
-   ): T => {
-      if (tags !== undefined && tags.length > 0) {
-         const out = new Object(null) as { [key: string]: string | undefined };
-         forEach(tags, t => (out[t.key] = synonyms[t.value] ?? t.value));
-         item.tags = out;
-      }
-      return item;
-   };
 
    forEach(xml.nodes, n =>
       nodes.set(

@@ -15,6 +15,8 @@ export class Graph {
    /** Mode of transportation */
    transport: string;
    config: RouteConfig;
+   /** Whether to download tile data as needed */
+   loadAsNeeded: false;
 
    constructor(
       transport: RouteConfig | Transport,
@@ -36,6 +38,7 @@ export class Graph {
       this.restrictions = new Restrictions(this.config, this.transport);
 
       if (tile !== undefined) {
+         this.loadAsNeeded = false;
          this.addTile(tile);
       }
    }
@@ -46,6 +49,9 @@ export class Graph {
     * Ensure tiles are available for routing.
     */
    ensureTiles(lat: number, lon: number) {
+      if (!this.loadAsNeeded) {
+         return;
+      }
       const [x, y] = whichTile(lat, lon);
       const tileID = `${x},${y}`;
 
@@ -63,7 +69,10 @@ export class Graph {
    addTile(tile: Tile) {
       this.nodes = tile.nodes;
       tile.ways.forEach(way => this.weights.fromWay(way));
-      forEach(tile.relations, this.restrictions.fromRelation);
+      forEach(
+         tile.relations,
+         this.restrictions.fromRelation.bind(this.restrictions)
+      );
    }
 
    /**

@@ -1,8 +1,13 @@
 import { reverse } from '@toba/node-tools';
 import { Node, Relation, Role } from './types';
 
-export const sharedNode = (nodes1: Node[], nodes2: Node[]) =>
+export const sharedNode = <T>(nodes1: T[], nodes2: T[]) =>
    nodes1.find(n => nodes2.includes(n));
+
+export const nextToLast = <T>(nodes: T[]): T =>
+   nodes[nodes.length - (nodes.length > 1 ? 2 : 1)];
+
+export const last = <T>(nodes: T[]): T => nodes[nodes.length - 1];
 
 /**
  * Sequence of nodes grouped into `from`, `via` and `to` sets.
@@ -31,8 +36,7 @@ export class Sequence {
    }
 
    fromNodes = (): number[] => [
-      // TODO: this will error on array length 1
-      this.nodes[0][this.nodes[0].length - 2].id,
+      nextToLast(this.nodes[0]).id,
       this.nodes[1][0].id
    ];
 
@@ -60,7 +64,7 @@ export class Sequence {
    /**
     * First unique Node ID in "to" group.
     */
-   toNode = (): number => this.nodes[this.nodes.length - 1][1].id;
+   toNode = (): number => last(this.nodes)[1].id;
 
    /**
     * Sort node sets so shared nodes are adjacent.
@@ -86,20 +90,20 @@ export class Sequence {
          }
 
          /** Last index of first group */
-         const last = this.nodes[i].length - 1;
+         const lastIndex = this.nodes[i].length - 1;
 
          if (this.nodes[j][0] !== common) {
             // reverse if first node of second group isn't the common node
             this.nodes[j] = reverse(this.nodes[j]);
          }
 
-         if (i == 0 && this.nodes[i][last] !== common) {
+         if (i == 0 && this.nodes[i][lastIndex] !== common) {
             // only the "from" way can be reversed while ordering the nodes,
             // otherwise, the x way could be reversed twice (as member[x] and member[x+1])
             this.nodes[i] = reverse(this.nodes[i]);
          }
 
-         if (this.nodes[i][last] !== this.nodes[j][0]) {
+         if (this.nodes[i][lastIndex] !== this.nodes[j][0]) {
             console.error(
                `Relation ${this.relationID} member common nodes are not adjacent`
             );

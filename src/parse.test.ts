@@ -1,8 +1,8 @@
 import '@toba/test';
 import path from 'path';
 import { readFileText } from '@toba/node-tools';
-import { parseOsmXML } from './parse';
-import { Tile, WayType, Tag } from './types';
+import { parseOsmXML, addTags } from './parse';
+import { Tile, WayType, Tag, OsmItem } from './types';
 
 const osmFile = path.join(__dirname, '__mocks__', 'data.osm');
 
@@ -28,4 +28,21 @@ it('converts OSM XML to an object', async () => {
    expect(way.nodes[0].id).toBe(-102446);
    expect(way.nodes[0].lat).toBe(53.79681712755);
    expect(way.nodes[0].point()).toEqual([53.79681712755, 21.56294344783]);
+});
+
+it('converts tags to plain object with synonym substitutions', () => {
+   const tags: any[] = [];
+   const out: any = {};
+   const item: OsmItem = { id: 2 };
+   const synonyms = { value2: 'fixed2' };
+
+   for (let i = 1; i <= 5; i++) {
+      const key = 'key' + i;
+      const value = 'value' + i;
+      tags.push({ key, value });
+      // replace value with synonym if one is defined
+      out[key] = value == 'value2' ? synonyms[value] : value;
+   }
+   addTags(tags, item, synonyms);
+   expect(item.tags).toEqual(out);
 });

@@ -25,6 +25,8 @@ export class Restrictions {
    constructor(config: RouteConfig, transport: string) {
       this.transport = transport;
       this.config = config;
+      this.mandatory = new Map();
+      this.forbidden = new Map();
    }
 
    fromRelation(r: Relation) {
