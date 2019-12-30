@@ -156,8 +156,6 @@ export type RouteMode = { [key: string]: RouteConfig };
 
 export type Tags = { [key: string]: string };
 
-export const accessDenied = [Access.None, Access.Private];
-
 export const enum Action {
    Modify = 'modify',
    Delete = 'delete'
@@ -181,7 +179,7 @@ export interface OsmItem {
    id: number;
    //visible?: boolean;
    timestamp?: number;
-   tags?: { [key: string]: string | null };
+   tags?: { [key: string]: string | undefined };
 }
 
 /**
@@ -192,10 +190,7 @@ export interface Node extends OsmItem {
    lon: number;
    open?: boolean;
    date?: number;
-   /** Connection cost to other nodes keyed to other node ID */
-   connections?: Map<number, number>;
    point(): [number, number];
-   connect(other: Node, cost: number): void;
 }
 
 export interface Way extends OsmItem {

@@ -64,13 +64,6 @@ function point(this: Node): [number, number] {
    return [this.lat, this.lon];
 }
 
-function connect(this: Node, other: Node, cost: number): void {
-   if (this.connections === undefined) {
-      this.connections = new Map();
-   }
-   this.connections.set(other.id, cost);
-}
-
 /**
  * @param xml Pre-parsed object having the shape of OSM XML
  */
@@ -85,7 +78,7 @@ export function normalizeOsmXML(xml: OsmXML): Tile {
       synonyms: { [alt: string]: string } = {}
    ): T => {
       if (tags !== undefined && tags.length > 0) {
-         const out = new Object(null) as { [key: string]: string | null };
+         const out = new Object(null) as { [key: string]: string | undefined };
          forEach(tags, t => (out[t.key] = synonyms[t.value] ?? t.value));
          item.tags = out;
       }
@@ -99,8 +92,7 @@ export function normalizeOsmXML(xml: OsmXML): Tile {
             id: n.id,
             lat: n.lat,
             lon: n.lon,
-            point,
-            connect
+            point
          })
       )
    );
