@@ -1,11 +1,29 @@
-import { intersects } from '@toba/node-tools';
-import { Relation, Tag, Transport, RouteConfig } from './types';
+import { intersects, forEach } from '@toba/node-tools';
+import { Relation, Tag, Transport, RouteConfig, TagMap } from './types';
 import { Sequence } from './sequence';
 
 // https://www.measurethat.net/Benchmarks/Show/4797/1/js-regex-vs-startswith-vs-indexof
-const noAccess = /^no_/;
-const onlyAccess = /^only_/;
-const accessRestriction = /^(no|only)_/;
+const noPrefix = /^no_/;
+const onlyPrefix = /^only_/;
+const accessPrefix = /^(no|only)_/;
+const noAccess = /^(no|private)$/;
+
+/**
+ * Whether mode of transportation is allowed along the given OSM `Way` as
+ * indicated by its tags.
+ */
+export function allowTransport(wayTags: TagMap, accessTypes: Tag[]): boolean {
+   let allow = true;
+
+   forEach(accessTypes, tag => {
+      if (tag in wayTags) {
+         const value = wayTags[tag];
+         allow = value === undefined || !noAccess.test(value);
+      }
+   });
+
+   return allow;
+}
 
 /**
  * Mandatory or forbidden node sequences for type of transport.
@@ -38,7 +56,7 @@ export class Restrictions {
 
       if (
          accessException !== undefined &&
-         intersects(accessException.split(';'), this.config.access)
+         intersects(accessException.split(';'), this.config.canUse)
       ) {
          // ignore restrictions if access type is an explicit exception
          return;
@@ -60,7 +78,7 @@ export class Restrictions {
 
       if (
          restrictionType === undefined ||
-         !accessRestriction.test(restrictionType)
+         !accessPrefix.test(restrictionType)
       ) {
          // missing or inapplicable restriction type
          return;
@@ -69,14 +87,14 @@ export class Restrictions {
       const sequence = new Sequence(r);
 
       if (sequence.sort().valid) {
-         if (noAccess.test(restrictionType)) {
+         if (noPrefix.test(restrictionType)) {
             const key: number[] = [
                ...sequence.fromNodes(),
                ...sequence.viaNodes(),
                sequence.toNode()
             ];
             this.forbidden.set(key.join(','), true);
-         } else if (onlyAccess.test(restrictionType)) {
+         } else if (onlyPrefix.test(restrictionType)) {
             const key: number[] = [...sequence.fromNodes(), sequence.toNode()];
             this.mandatory.set(key.join(','), sequence.viaNodes());
          }

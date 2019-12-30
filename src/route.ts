@@ -117,7 +117,7 @@ class Route extends Graph {
          }
       };
 
-      if (!this.weights.has(startNode)) {
+      if (!this.preferences.has(startNode)) {
          throw new Error(`Node ${startNode} does not exist in the graph`);
       }
 
@@ -125,7 +125,7 @@ class Route extends Graph {
          return [Status.NoRoute, []];
       }
 
-      this.weights.get(startNode)!.forEach((weight, linkedNode) => {
+      this.preferences.get(startNode)!.forEach((weight, linkedNode) => {
          addToPlans(
             startNode,
             linkedNode,
@@ -168,19 +168,19 @@ class Route extends Graph {
             const nextNode = nextPlan.mandatoryNodes.shift()!;
 
             if (
-               this.weights.has(nextNode) &&
-               this.weights.has(consideredNode) &&
-               this.weights.get(consideredNode)!.has(nextNode)
+               this.preferences.has(nextNode) &&
+               this.preferences.has(consideredNode) &&
+               this.preferences.get(consideredNode)!.has(nextNode)
             ) {
                addToPlans(
                   consideredNode,
                   nextNode,
                   nextPlan,
-                  this.weights.get(consideredNode)!.get(nextNode)
+                  this.preferences.get(consideredNode)!.get(nextNode)
                );
             }
-         } else if (this.weights.has(consideredNode)) {
-            this.weights.get(consideredNode)!.forEach((weight, nextNode) => {
+         } else if (this.preferences.has(consideredNode)) {
+            this.preferences.get(consideredNode)!.forEach((weight, nextNode) => {
                if (!closed.has(nextNode)) {
                   addToPlans(consideredNode, nextNode, nextPlan, weight);
                }

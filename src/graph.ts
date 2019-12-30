@@ -2,12 +2,12 @@ import { measure } from '@toba/map';
 import { is, forEach } from '@toba/node-tools';
 import { RouteConfig, Transport, Node, Tile } from './types';
 import { whichTile } from './tile';
-import { routeModes } from './config';
-import { Weights } from './weight';
+import { preferences } from './config';
+import { Preferences } from './preference';
 import { Restrictions } from './restriction';
 
 export class Graph {
-   weights: Weights;
+   preferences: Preferences;
    restrictions: Restrictions;
    nodes: Map<number, Node>;
    /** Cached tiles */
@@ -24,6 +24,7 @@ export class Graph {
       expireData = 30
    ) {
       this.tiles = new Map();
+      this.nodes = new Map();
 
       if (is.object<RouteConfig>(transport)) {
          this.transport = transport.name!;
@@ -31,10 +32,10 @@ export class Graph {
       } else {
          this.transport = transport;
          // TODO: clone instead of assign
-         this.config = routeModes[transport];
+         this.config = preferences[transport];
       }
 
-      this.weights = new Weights(this.config, this.transport);
+      this.preferences = new Preferences(this.config, this.transport);
       this.restrictions = new Restrictions(this.config, this.transport);
 
       if (tile !== undefined) {
@@ -67,12 +68,12 @@ export class Graph {
    }
 
    addTile(tile: Tile) {
-      this.nodes = tile.nodes;
-      tile.ways.forEach(way => this.weights.fromWay(way));
-      forEach(
-         tile.relations,
-         this.restrictions.fromRelation.bind(this.restrictions)
-      );
+      tile.ways.forEach(way => {
+         // only cache nodes that are part of routable ways
+         const routableNodes = this.preferences.fromWay(way);
+         forEach(routableNodes, n => this.nodes.set(n.id, n));
+      });
+      forEach(tile.relations, r => this.restrictions.fromRelation(r));
    }
 
    /**
@@ -87,17 +88,18 @@ export class Graph {
     */
    nearestNode(lat: number, lon: number): number | null {
       this.ensureTiles(lat, lon);
-      let nodeDistance = Number.MAX_VALUE;
-      let nearestNodeID: number | null = null;
+      let foundDistance = Number.MAX_VALUE;
+      let foundNode: number | null = null;
 
       this.nodes.forEach((node, nodeID) => {
          const distance = this.distance(node.point(), [lat, lon]);
-         if (distance < nodeDistance) {
-            nodeDistance = distance;
-            nearestNodeID = nodeID;
+
+         if (distance < foundDistance) {
+            foundDistance = distance;
+            foundNode = nodeID;
          }
       });
 
-      return nearestNodeID;
+      return foundNode;
    }
 }

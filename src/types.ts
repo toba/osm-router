@@ -91,6 +91,8 @@ export const enum WayType {
  * Common tags relevant to routing.
  */
 export const enum Tag {
+   /** @see https://wiki.openstreetmap.org/wiki/Key:access */
+   Access = 'access',
    /** `WayType` value */
    RoadType = 'highway',
    RailType = 'railway',
@@ -100,7 +102,16 @@ export const enum Tag {
    Exception = 'except',
    Type = 'type',
    /** Indicates disallowed transportation types */
-   Restriction = 'restriction'
+   Restriction = 'restriction',
+   Bicycle = 'bicycle',
+   Bus = 'bus',
+   Foot = 'foot',
+   Horse = 'horse',
+   MotorCar = 'motorcar',
+   Motorcycle = 'motorcycle',
+   MotorVehicle = 'motor_vehicle',
+   ServiceVehicle = 'psv',
+   Vehicle = 'vehicle'
 }
 
 /**
@@ -117,22 +128,19 @@ export const enum Transport {
    Train = 'train'
 }
 
-/**
- * @see https://wiki.openstreetmap.org/wiki/Key:access
- */
-export const enum AccessibleTo {
-   AllTerrainVehicle = 'atv',
-   Any = 'access',
-   Bicycle = 'bicycle',
-   Bus = 'bus',
-   Foot = 'foot',
-   Horse = 'horse',
-   MotorCar = 'motorcar',
-   Motorcycle = 'motorcycle',
-   MotorVehicle = 'motor_vehicle',
-   ServiceVehicle = 'psv',
-   Vehicle = 'vehicle'
-}
+// export const enum AccessibleTo {
+//    AllTerrainVehicle = 'atv',
+//    Any = 'access',
+//    Bicycle = 'bicycle',
+//    Bus = 'bus',
+//    Foot = 'foot',
+//    Horse = 'horse',
+//    MotorCar = 'motorcar',
+//    Motorcycle = 'motorcycle',
+//    MotorVehicle = 'motor_vehicle',
+//    ServiceVehicle = 'psv',
+//    Vehicle = 'vehicle'
+// }
 
 export const enum ItemType {
    Node = 'node',
@@ -140,21 +148,41 @@ export const enum ItemType {
    Relation = 'relation'
 }
 
+/**
+ * @see https://wiki.openstreetmap.org/wiki/Key:access
+ */
 export const enum Access {
+   /** Access only for agricultural vehicles */
+   Agricultural = 'agricultural',
+   /** Public has an official, legally-enshrined right of access */
+   Allowed = 'yes',
+   /** Accewss only for customers */
+   Customers = 'customers',
+   /** Access only for deliveries */
+   Delivery = 'delivery',
+   /** Access is legal but discouraged */
+   Discouraged = 'discouraged',
+   /** Access only to specific destination */
+   Destination = 'destination',
+   /** Only forestry traffic allowed */
+   Forestry = 'forestry',
+   /** No access to general public */
    None = 'no',
+   /** Owner granted access */
+   Permissive = 'permissive',
+   /** Accessible only to individuals with permission */
    Private = 'private'
 }
 
 export interface RouteConfig {
    name?: string;
-   /** Weights per road type key */
-   weights: { [key: string]: number };
-   access: AccessibleTo[];
+   /** Preferred road type key */
+   preference: { [key: string]: number };
+   /** Usable access types */
+   canUse: Tag[];
 }
 
 export type RouteMode = { [key: string]: RouteConfig };
-
-export type Tags = { [key: string]: string };
 
 export const enum Action {
    Modify = 'modify',
@@ -167,10 +195,11 @@ export const enum Role {
    To = 'to'
 }
 
-/**
- * Decimal latitude and longitude.
- */
+/** Decimal latitude and longitude. */
 export type Point = [number, number];
+
+/** Values keyed to tags. */
+export type TagMap = { [key: string]: string | undefined };
 
 /**
  * @see https://wiki.openstreetmap.org/wiki/API_v0.6/XSD
@@ -179,7 +208,7 @@ export interface OsmItem {
    id: number;
    //visible?: boolean;
    timestamp?: number;
-   tags?: { [key: string]: string | undefined };
+   tags?: TagMap;
 }
 
 /**

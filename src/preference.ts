@@ -1,24 +1,16 @@
-import { is, forEach } from '@toba/node-tools';
-import {
-   Node,
-   Tag,
-   Way,
-   WayType,
-   Access,
-   Transport,
-   RouteConfig
-} from './types';
+import { is } from '@toba/node-tools';
+import { Node, Tag, Way, WayType, Transport, RouteConfig } from './types';
+import { allowTransport } from './restriction';
 
-const noAccess = [Access.None, Access.Private];
 const reverse = /^(-1|reverse)$/;
 const forward = /^(yes|true|one)$/;
 const hasValue = /^(yes|true|1|-1)$/;
 
 /**
- * Weighted connections between nodes for type of transport.
+ * Preferred connections between nodes for type of transport.
  */
-export class Weights {
-   /** Weights assigned to node-node connections based on `RouteConfig` */
+export class Preferences {
+   /** Preference assigned to node-node connections based on `RouteConfig` */
    connections: Map<number, Map<number, number>>;
    /** Mode of transportation */
    transport: string;
@@ -31,11 +23,12 @@ export class Weights {
    }
 
    /**
-    * Create weighted node connections from way.
+    * Create preferential node connections from way.
+    * @returns Routable nodes
     */
-   fromWay(way: Way) {
+   fromWay(way: Way): Node[] {
       let oneway = '';
-      let weight = 0;
+      let preference = 0;
 
       if (way.tags !== undefined) {
          const roadType = way.tags[Tag.RoadType];
@@ -64,15 +57,15 @@ export class Weights {
          }
 
          if (roadType !== undefined) {
-            weight = this.config.weights[roadType] ?? 0;
+            preference = this.config.preference[roadType] ?? 0;
          }
 
-         if (railType !== undefined && weight == 0) {
-            weight = this.config.weights[railType] ?? 0;
+         if (railType !== undefined && preference == 0) {
+            preference = this.config.preference[railType] ?? 0;
          }
 
-         if (weight <= 0 || !this.allowed(way.tags)) {
-            return;
+         if (preference <= 0 || !allowTransport(way.tags, this.config.canUse)) {
+            return [];
          }
       }
 
@@ -82,30 +75,14 @@ export class Weights {
 
          if (!reverse.test(oneway)) {
             // foward travel is allowed from n1 to n2
-            this.add(n1, n2, weight);
+            this.add(n1, n2, preference);
          }
          if (!forward.test(oneway)) {
             // reverse travel is allowed from n2 to n1
-            this.add(n2, n1, weight);
+            this.add(n2, n1, preference);
          }
       }
-   }
-
-   /**
-    * Whether mode of transportation is allowed along the given OSM `Way` as
-    * indicated by its tags.
-    */
-   allowed(tags: { [key: string]: string | undefined }): boolean {
-      let okay = true;
-
-      forEach(this.config.access, key => {
-         if (key in tags) {
-            const value = tags[key];
-            okay = value === undefined || !(value in noAccess);
-         }
-      });
-
-      return okay;
+      return way.nodes;
    }
 
    /**

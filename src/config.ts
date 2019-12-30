@@ -1,8 +1,8 @@
-import { RouteMode, Transport, WayType, AccessibleTo } from './types';
+import { RouteMode, Transport, WayType, Tag } from './types';
 
-export const routeModes: RouteMode = {
+export const preferences: RouteMode = {
    [Transport.Car]: {
-      weights: {
+      preference: {
          [WayType.Freeway]: 10,
          [WayType.Trunk]: 10,
          [WayType.Primary]: 2,
@@ -13,15 +13,10 @@ export const routeModes: RouteMode = {
          [WayType.TwoTrack]: 0.5,
          [WayType.ServiceRoad]: 0.5
       },
-      access: [
-         AccessibleTo.Any,
-         AccessibleTo.Vehicle,
-         AccessibleTo.MotorVehicle,
-         AccessibleTo.MotorCar
-      ]
+      canUse: [Tag.Access, Tag.Vehicle, Tag.MotorVehicle, Tag.MotorCar]
    },
    [Transport.Bus]: {
-      weights: {
+      preference: {
          [WayType.Freeway]: 10,
          [WayType.Trunk]: 10,
          [WayType.Primary]: 2,
@@ -32,16 +27,16 @@ export const routeModes: RouteMode = {
          [WayType.TwoTrack]: 0.3,
          [WayType.ServiceRoad]: 0.9
       },
-      access: [
-         AccessibleTo.Any,
-         AccessibleTo.Vehicle,
-         AccessibleTo.MotorVehicle,
-         AccessibleTo.ServiceVehicle,
-         AccessibleTo.Bus
+      canUse: [
+         Tag.Access,
+         Tag.Vehicle,
+         Tag.MotorVehicle,
+         Tag.ServiceVehicle,
+         Tag.Bus
       ]
    },
    [Transport.Bicycle]: {
-      weights: {
+      preference: {
          [WayType.Trunk]: 0.05,
          [WayType.Primary]: 0.3,
          [WayType.Secondary]: 0.9,
@@ -56,10 +51,10 @@ export const routeModes: RouteMode = {
          [WayType.Stairs]: 0.5,
          [WayType.Path]: 1
       },
-      access: [AccessibleTo.Any, AccessibleTo.Vehicle, AccessibleTo.Bicycle]
+      canUse: [Tag.Access, Tag.Vehicle, Tag.Bicycle]
    },
    [Transport.Horse]: {
-      weights: {
+      preference: {
          [WayType.Primary]: 0.05,
          [WayType.Secondary]: 0.15,
          [WayType.Tertiary]: 0.3,
@@ -72,22 +67,22 @@ export const routeModes: RouteMode = {
          [WayType.Stairs]: 1.15,
          [WayType.Path]: 1.2
       },
-      access: [AccessibleTo.Any, AccessibleTo.Horse]
+      canUse: [Tag.Access, Tag.Horse]
    },
    [Transport.Tram]: {
-      weights: {
+      preference: {
          [WayType.Tram]: 1,
          [WayType.LightRail]: 1
       },
-      access: [AccessibleTo.Any]
+      canUse: [Tag.Access]
    },
    [Transport.Train]: {
-      weights: {
+      preference: {
          [WayType.Rail]: 1,
          [WayType.LightRail]: 1,
          [WayType.Subway]: 1,
          [WayType.NarrowGauge]: 1
       },
-      access: [AccessibleTo.Any]
+      canUse: [Tag.Access]
    }
 };
