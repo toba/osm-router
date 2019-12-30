@@ -1,4 +1,4 @@
-import { forEach } from '@toba/node-tools';
+import { forEach, filterEach } from '@toba/node-tools';
 import transform from 'camaro';
 import {
    Node,
@@ -7,9 +7,9 @@ import {
    Relation,
    OsmItem,
    Tile,
-   Hash,
    WayType,
-   ItemType
+   ItemType,
+   Tag
 } from './types';
 
 interface ItemXML {
@@ -60,13 +60,25 @@ const wayTypeSynonyms: { [key: string]: string } = {
    platform: WayType.FootPath
 };
 
+function point(this: Node): [number, number] {
+   return [this.lat, this.lon];
+}
+
+function connect(this: Node, other: Node, cost: number): void {
+   if (this.connections === undefined) {
+      this.connections = new Map();
+   }
+   this.connections.set(other.id, cost);
+}
+
 /**
  * @param xml Pre-parsed object having the shape of OSM XML
  */
 export function normalizeOsmXML(xml: OsmXML): Tile {
-   const nodes = new Object(null) as Hash<Node>;
-   const ways = new Object(null) as Hash<Way>;
+   const nodes = new Map<number, Node>();
+   const ways = new Map<number, Way>();
 
+   /** Convert tags to plain object and add to item. */
    const addTags = <T extends OsmItem>(
       tags: TagXML[],
       item: T,
@@ -80,28 +92,46 @@ export function normalizeOsmXML(xml: OsmXML): Tile {
       return item;
    };
 
-   forEach(xml.nodes, n => {
-      nodes[n.id] = addTags<Node>(n.tags, {
-         id: n.id,
-         lat: n.lat,
-         lon: n.lon
-      });
-   });
+   forEach(xml.nodes, n =>
+      nodes.set(
+         n.id,
+         addTags<Node>(n.tags, {
+            id: n.id,
+            lat: n.lat,
+            lon: n.lon,
+            point,
+            connect
+         })
+      )
+   );
 
-   forEach(xml.ways, w => {
-      ways[w.id] = addTags<Way>(
-         w.tags,
-         { id: w.id, nodes: w.nodes.map(id => nodes[id]) },
-         wayTypeSynonyms
-      );
-   });
+   forEach(xml.ways, w =>
+      ways.set(
+         w.id,
+         addTags<Way>(
+            w.tags,
+            {
+               id: w.id,
+               nodes: w.nodes
+                  .filter(id => nodes.has(id))
+                  .map(id => nodes.get(id)!)
+            },
+            wayTypeSynonyms
+         )
+      )
+   );
 
    const relations: Relation[] = xml.relations.map(r =>
       addTags<Relation>(r.tags, {
          id: r.id,
          members: r.members.map(m => ({
             role: m.role as Role,
-            nodes: m.type == ItemType.Way ? ways[m.ref].nodes : [nodes[m.ref]]
+            nodes:
+               m.type == ItemType.Way
+                  ? ways.get(m.ref)?.nodes ?? []
+                  : nodes.has(m.ref)
+                  ? [nodes.get(m.ref)!]
+                  : []
          }))
       })
    );
@@ -115,6 +145,7 @@ export function normalizeOsmXML(xml: OsmXML): Tile {
 
 /**
  * @see https://github.com/tuananh/camaro/blob/develop/API.md
+ * @see https://devhints.io/xpath
  */
 export function parseOsmXML(xmlText: string): Tile {
    const template = {
@@ -124,14 +155,12 @@ export function parseOsmXML(xmlText: string): Tile {
             id: 'number(@id)',
             lat: 'number(@lat)',
             lon: 'number(@lon)'
-            //visible: 'boolean(@visible = "true")'
          }
       ],
       ways: [
-         '/osm/way',
+         `/osm/way[tag[@k='${Tag.RoadType}' or @k='${Tag.RailType}']]`,
          {
             id: 'number(@id)',
-            //visible: 'boolean(@visible = "true")',
             nodes: ['nd', 'number(@ref)'],
             tags: [
                'tag',
@@ -143,10 +172,9 @@ export function parseOsmXML(xmlText: string): Tile {
          }
       ],
       relations: [
-         '/osm/relation',
+         `/osm/relation[tag[@k='${Tag.Type}'][starts-with(@v, '${Tag.Restriction}')]]`,
          {
             id: 'number(@id)',
-            //visible: 'boolean(@visible = "true")',
             members: [
                'member',
                {

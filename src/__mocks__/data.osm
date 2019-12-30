@@ -515,6 +515,11 @@
     <nd ref='-102566' />
     <tag k='highway' v='residential' />
   </way>
+  <way id='-74' action='ignore' visible='true'>
+    <nd ref='-102612' />
+    <nd ref='-102566' />
+    <tag k='notway' v='residential' />
+  </way>
   <way id='-102643' action='modify' visible='true'>
     <nd ref='-102580' />
     <nd ref='-102582' />
@@ -591,5 +596,12 @@
     <member type='way' ref='-102638' role='to' />
     <tag k='restriction' v='no_left_turn' />
     <tag k='type' v='restriction' />
+  </relation>
+  <relation id='-99' action='ignore' visible='true'>
+    <member type='way' ref='-102635' role='from' />
+    <member type='node' ref='-102522' role='via' />
+    <member type='way' ref='-102638' role='to' />
+    <tag k='restriction' v='no_left_turn' />
+    <tag k='type' v='should-be-excluded' />
   </relation>
 </osm>

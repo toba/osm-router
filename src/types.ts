@@ -145,107 +145,16 @@ export const enum Access {
    Private = 'private'
 }
 
-export interface RouteSpec {
+export interface RouteConfig {
    name?: string;
+   /** Weights per road type key */
    weights: { [key: string]: number };
    access: AccessibleTo[];
 }
 
-export type RouteMode = { [key: string]: RouteSpec };
+export type RouteMode = { [key: string]: RouteConfig };
 
 export type Tags = { [key: string]: string };
-
-export const routeModes: RouteMode = {
-   [Transport.Car]: {
-      weights: {
-         [WayType.Freeway]: 10,
-         [WayType.Trunk]: 10,
-         [WayType.Primary]: 2,
-         [WayType.Secondary]: 1.5,
-         [WayType.Tertiary]: 1,
-         [WayType.Minor]: 1,
-         [WayType.Residential]: 0.7,
-         [WayType.TwoTrack]: 0.5,
-         [WayType.ServiceRoad]: 0.5
-      },
-      access: [
-         AccessibleTo.Any,
-         AccessibleTo.Vehicle,
-         AccessibleTo.MotorVehicle,
-         AccessibleTo.MotorCar
-      ]
-   },
-   [Transport.Bus]: {
-      weights: {
-         [WayType.Freeway]: 10,
-         [WayType.Trunk]: 10,
-         [WayType.Primary]: 2,
-         [WayType.Secondary]: 1.5,
-         [WayType.Tertiary]: 1,
-         [WayType.Minor]: 1,
-         [WayType.Residential]: 0.8,
-         [WayType.TwoTrack]: 0.3,
-         [WayType.ServiceRoad]: 0.9
-      },
-      access: [
-         AccessibleTo.Any,
-         AccessibleTo.Vehicle,
-         AccessibleTo.MotorVehicle,
-         AccessibleTo.ServiceVehicle,
-         AccessibleTo.Bus
-      ]
-   },
-   [Transport.Bicycle]: {
-      weights: {
-         [WayType.Trunk]: 0.05,
-         [WayType.Primary]: 0.3,
-         [WayType.Secondary]: 0.9,
-         [WayType.Tertiary]: 1,
-         [WayType.Minor]: 1,
-         [WayType.BicyclePath]: 2,
-         [WayType.Residential]: 2.5,
-         [WayType.TwoTrack]: 1,
-         [WayType.ServiceRoad]: 1,
-         [WayType.HorsePath]: 0.8,
-         [WayType.FootPath]: 0.8,
-         [WayType.Stairs]: 0.5,
-         [WayType.Path]: 1
-      },
-      access: [AccessibleTo.Any, AccessibleTo.Vehicle, AccessibleTo.Bicycle]
-   },
-   [Transport.Horse]: {
-      weights: {
-         [WayType.Primary]: 0.05,
-         [WayType.Secondary]: 0.15,
-         [WayType.Tertiary]: 0.3,
-         [WayType.Minor]: 1,
-         [WayType.Residential]: 1,
-         [WayType.TwoTrack]: 1,
-         [WayType.ServiceRoad]: 1,
-         [WayType.HorsePath]: 1,
-         [WayType.FootPath]: 1.2,
-         [WayType.Stairs]: 1.15,
-         [WayType.Path]: 1.2
-      },
-      access: [AccessibleTo.Any, AccessibleTo.Horse]
-   },
-   [Transport.Tram]: {
-      weights: {
-         [WayType.Tram]: 1,
-         [WayType.LightRail]: 1
-      },
-      access: [AccessibleTo.Any]
-   },
-   [Transport.Train]: {
-      weights: {
-         [WayType.Rail]: 1,
-         [WayType.LightRail]: 1,
-         [WayType.Subway]: 1,
-         [WayType.NarrowGauge]: 1
-      },
-      access: [AccessibleTo.Any]
-   }
-};
 
 export const accessDenied = [Access.None, Access.Private];
 
@@ -261,6 +170,11 @@ export const enum Role {
 }
 
 /**
+ * Decimal latitude and longitude.
+ */
+export type Point = [number, number];
+
+/**
  * @see https://wiki.openstreetmap.org/wiki/API_v0.6/XSD
  */
 export interface OsmItem {
@@ -270,10 +184,6 @@ export interface OsmItem {
    tags?: { [key: string]: string | null };
 }
 
-// export interface OsmTagged {
-//    tags?: { [key: string]: string | null };
-// }
-
 /**
  * Single point on the map.
  */
@@ -282,6 +192,10 @@ export interface Node extends OsmItem {
    lon: number;
    open?: boolean;
    date?: number;
+   /** Connection cost to other nodes keyed to other node ID */
+   connections?: Map<number, number>;
+   point(): [number, number];
+   connect(other: Node, cost: number): void;
 }
 
 export interface Way extends OsmItem {
@@ -297,10 +211,10 @@ export interface Relation extends OsmItem {
    members: RelationMember[];
 }
 
-export type Hash<T> = { [id: number]: T };
-
 export interface Tile {
-   nodes: Hash<Node>;
-   ways: Hash<Way>;
+   /** Nodes keyed to their ID */
+   nodes: Map<number, Node>;
+   /** Ways keyed to their ID */
+   ways: Map<number, Way>;
    relations: Relation[];
 }

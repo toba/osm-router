@@ -1,46 +1,44 @@
-import { forEachKeyValue, removeItem } from '@toba/node-tools';
+import { removeItem, forEach } from '@toba/node-tools';
 import { Graph } from './graph';
-import { forEach } from '.';
+import { PlanItem } from './plan';
 
-type Point = [number, number];
-
-interface QueueItem {
-   nodeIDs: number[];
-   cost: number;
-   heuristicCost: number;
-   mandatoryNodeIDs: number[];
-   end: number;
+export const enum Status {
+   NoRoute,
+   Success,
+   GaveUp
 }
 
 class Route extends Graph {
    /**
-    * @param start Node ID
-    * @param end Node ID
+    *
+    * @param startNode Node ID
+    * @param endNode Node ID
     */
-   execute(start: number, end: number): [string, number[]] {
-      const queue: QueueItem[] = [];
-      const firstEnd = end;
+   execute(startNode: number, endNode: number): [Status, number[]] {
+      const plans: PlanItem[] = [];
+      const firstEnd = endNode;
+      const closed = new Set([startNode]);
 
       let closeNode = true;
 
-      const addToQueue = (
+      const addToPlans = (
          start: number,
          end: number,
-         queueSoFar: QueueItem,
+         plan: PlanItem,
          weight = 1
       ) => {
          if (weight == 0) {
             // ignore non-traversible route
             return;
          }
-         if (!(end in this.locations && start in this.locations)) {
+         if (!(this.locations.has(end) && this.locations.has(start))) {
             // nodes must have positions
             return;
          }
 
-         const endLatLon = this.locations[end];
-         const startLatLon = this.locations[start];
-         const sequence = queueSoFar.nodeIDs;
+         const endLatLon = this.locations.get(end)!;
+         const startLatLon = this.locations.get(start)!;
+         const sequence = plan.nodes;
 
          if (sequence.length >= 2 && sequence[sequence.length - 2] == end) {
             // do not turn around at a node (i.e. a-b-a)
@@ -50,22 +48,21 @@ class Route extends Graph {
          this.ensureTiles(endLatLon[0], endLatLon[1]);
 
          const edgeCost = this.distance(startLatLon, endLatLon) / weight;
-         const totalCost = queueSoFar.cost + edgeCost;
+         const totalCost = plan.cost + edgeCost;
          const heuristicCost =
-            totalCost + this.distance(endLatLon, this.locations[firstEnd]);
-         const allNodes = [end].concat(queueSoFar.nodeIDs);
+            totalCost + this.distance(endLatLon, this.locations.get(firstEnd)!);
+         const allNodes = [end].concat(plan.nodes);
          const nodeList = allNodes.join(',');
 
          /* eslint-disable consistent-return */
-         forEachKeyValue(this.forbiddenMoves, (pattern, enabled) => {
-            if (nodeList.includes(pattern)) {
+         this.forbiddenMoves.forEach((active, pattern) => {
+            if (active && nodeList.includes(pattern)) {
                closeNode = false;
-               return false;
             }
          });
 
          // check if there is already a way to the end node
-         const endQueueItem = queue.find(q => q.end === end);
+         const endQueueItem = plans.find(q => q.endNode === end);
 
          if (endQueueItem !== undefined) {
             if (endQueueItem.cost < totalCost) {
@@ -73,39 +70,42 @@ class Route extends Graph {
                return;
             }
             // If the queued way to end has higher total cost, remove it (and add the queueSoFar scenario, as it's cheaper)
-            removeItem(queue, endQueueItem);
+            removeItem(plans, endQueueItem);
          }
 
          let forceNextNodes: number[] = [];
 
-         if (queueSoFar.mandatoryNodeIDs.length > 0) {
-            forceNextNodes = queueSoFar.mandatoryNodeIDs;
+         if (
+            plan.mandatoryNodes !== undefined &&
+            plan.mandatoryNodes.length > 0
+         ) {
+            forceNextNodes = plan.mandatoryNodes;
          } else {
-            forEachKeyValue(this.mandatoryMoves, (pattern, nodes) => {
+            this.mandatoryMoves.forEach((nodes, pattern) => {
                if (nodeList.endsWith(pattern)) {
                   closeNode = false;
                   // TODO: need to copy not assign
                   forceNextNodes = nodes;
-                  return false;
                }
             });
          }
 
-         const queueItem: QueueItem = {
+         const nextPlan: PlanItem = {
             cost: totalCost,
             heuristicCost,
-            nodeIDs: allNodes,
-            end,
-            mandatoryNodeIDs: forceNextNodes
+            nodes: allNodes,
+            endNode: end,
+            mandatoryNodes: forceNextNodes
          };
 
          // Try to insert, keeping the queue ordered by decreasing heuristic cost
          let count = 0;
          let inserted = false;
 
-         forEach(queue, q => {
-            if (q.heuristicCost > queueItem.heuristicCost) {
-               queue.splice(count, 0, queueItem);
+         forEach(plans, q => {
+            // TODO: better filter?
+            if ((q.heuristicCost ?? 0) > (nextPlan.heuristicCost ?? 0)) {
+               plans.splice(count, 0, nextPlan);
                inserted = true;
                return false;
             }
@@ -113,16 +113,84 @@ class Route extends Graph {
          });
 
          if (!inserted) {
-            queue.push(queueItem);
+            plans.push(nextPlan);
          }
       };
 
-      if (!(start in this.routing)) {
-         throw new Error(`Node ${start} does not exist in the graph`);
+      if (!this.weights.has(startNode)) {
+         throw new Error(`Node ${startNode} does not exist in the graph`);
       }
 
-      if (start == end) {
-         return ['no_route', []];
+      if (startNode == endNode) {
+         return [Status.NoRoute, []];
       }
+
+      this.weights.get(startNode)!.forEach((weight, linkedNode) => {
+         addToPlans(
+            startNode,
+            linkedNode,
+            {
+               cost: 0,
+               nodes: [startNode],
+               mandatoryNodes: []
+            },
+            weight
+         );
+      });
+
+      // limit search duration
+      let count = 0;
+      while (count < 1000000) {
+         count++;
+         closeNode = true;
+         let nextPlan: PlanItem;
+
+         if (plans.length > 0) {
+            nextPlan = plans.pop()!;
+         } else {
+            return [Status.NoRoute, []];
+         }
+
+         // TODO: validate assertion
+         const consideredNode = nextPlan.endNode!;
+
+         if (closed.has(consideredNode)) {
+            // eslint-disable-next-line
+            continue;
+         }
+
+         if (consideredNode === endNode) {
+            return [Status.Success, nextPlan.nodes];
+         }
+
+         if (nextPlan.mandatoryNodes.length > 0) {
+            closeNode = false;
+            const nextNode = nextPlan.mandatoryNodes.shift()!;
+
+            if (
+               this.weights.has(nextNode) &&
+               this.weights.has(consideredNode) &&
+               this.weights.get(consideredNode)!.has(nextNode)
+            ) {
+               addToPlans(
+                  consideredNode,
+                  nextNode,
+                  nextPlan,
+                  this.weights.get(consideredNode)!.get(nextNode)
+               );
+            }
+         } else if (this.weights.has(consideredNode)) {
+            this.weights.get(consideredNode)!.forEach((weight, nextNode) => {
+               if (!closed.has(nextNode)) {
+                  addToPlans(consideredNode, nextNode, nextPlan, weight);
+               }
+            });
+         }
+
+         if (closeNode) {
+            closed.add(consideredNode);
+         }
+      }
+      return [Status.GaveUp, []];
    }
 }

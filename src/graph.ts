@@ -1,14 +1,8 @@
 import { measure } from '@toba/map';
+import { is, forEach, intersects, reverse } from '@toba/node-tools';
 import {
-   forEach,
-   forEachKeyValue,
-   intersects,
-   reverse
-} from '@toba/node-tools';
-import {
-   RouteSpec,
+   RouteConfig,
    Transport,
-   routeModes,
    Tags,
    Way,
    Node,
@@ -19,82 +13,49 @@ import {
    Tag,
    Role
 } from './types';
-import { is } from '.';
+import { whichTile } from './tile';
+import { routeModes } from './config';
 
-const defaultZoom = 15;
 // https://www.measurethat.net/Benchmarks/Show/4797/1/js-regex-vs-startswith-vs-indexof
 const noAccess = /^no_/;
 const onlyAccess = /^only_/;
 const accessRestriction = /^(no|only)_/;
 
-/**
- * Calculate OSM tile coordinate for location and zoom.
- * @param lat Latitude
- * @param lon Longitude
- */
-function whichTile(
-   lat: number,
-   lon: number,
-   zoom: number = defaultZoom
-): [number, number, number] {
-   /** Latitude in radians */
-   const radLat = measure.toRadians(lat);
-   const n = 2 ** zoom;
-   const x = n * ((lon + 180) / 360);
-   const y = n * (1 - Math.log(Math.tan(radLat) + 1 / Math.cos(radLat)));
-
-   return [x, y, zoom];
-}
-
-/**
- * Calculate left, bottom, right and top for tile.
- * @param x Tile X coordinate
- * @param y Tile Y coordinate
- */
-function tileBoundary(
-   x: number,
-   y: number,
-   zoom: number = defaultZoom
-): [number, number, number, number] {
-   const n = 2 ** zoom;
-   const mercToLat = (x: number) => measure.toDegrees(Math.atan(Math.sinh(x)));
-   const top = mercToLat(Math.PI * (1 - 2 * ((y * 1) / n)));
-   const bottom = mercToLat(Math.PI * (1 - 2 * ((y + 1) * (1 / n))));
-   const left = x * (360 / n) - 180;
-   const right = left + 360 / n;
-
-   return [left, bottom, right, top];
-}
-
 export class Graph {
-   /** Weights assigned to node-node travel */
-   routing: { [fromNodeID: number]: { [toNodeID: number]: number } };
-   /** Node `[latitude, longitude]` keyed to ID */
-   locations: { [key: number]: [number, number] };
+   nodes: Map<number, Node>;
    /** Required Node ID moves keyed to triggering node list */
-   mandatoryMoves: { [nodeIdList: string]: number[] };
+   mandatoryMoves: Map<string, number[]>;
    /** Moves disallowed by turn restrictions */
-   forbiddenMoves: { [nodeIdList: string]: boolean };
+   forbiddenMoves: Map<string, boolean>;
    /** Cached tiles */
-   tiles: { [id: string]: boolean };
+   tiles: Map<string, boolean>;
    /** Mode of transportation */
    transport: string;
-   spec: RouteSpec;
+   config: RouteConfig;
 
    constructor(
-      transport: RouteSpec | Transport,
-      localFile = false,
+      transport: RouteConfig | Transport,
+      tile?: Tile,
       expireData = 30
    ) {
-      this.routing = {};
+      //this.nodes = new Map();
+      //this.weights = new Map();
+      //this.locations = new Map();
+      this.mandatoryMoves = new Map();
+      this.forbiddenMoves = new Map();
+      this.tiles = new Map();
 
-      if (is.object<RouteSpec>(transport)) {
+      if (is.object<RouteConfig>(transport)) {
          this.transport = transport.name!;
-         this.spec = transport;
+         this.config = transport;
       } else {
          this.transport = transport;
          // TODO: clone instead of assign
-         this.spec = routeModes[transport];
+         this.config = routeModes[transport];
+      }
+
+      if (tile !== undefined) {
+         this.addTile(tile);
       }
    }
 
@@ -105,7 +66,7 @@ export class Graph {
    private isAccessible(tags: Tags): boolean {
       let allowed = true;
 
-      forEach(this.spec.access, key => {
+      forEach(this.config.access, key => {
          if (key in tags) {
             allowed = !(tags[key] in accessDenied);
          }
@@ -114,7 +75,7 @@ export class Graph {
       return allowed;
    }
 
-   nodeLatLon = (nodeID: number) => this.locations[nodeID];
+   nodeLatLon = (nodeID: number) => this.nodes.get(nodeID)?.point();
 
    /**
     * Ensure tiles are available for routing.
@@ -123,18 +84,21 @@ export class Graph {
       const [x, y] = whichTile(lat, lon);
       const tileID = `${x},${y}`;
 
-      if (tileID in this.tiles) {
+      if (this.tiles.has(tileID)) {
          return;
       }
-      this.tiles[tileID] = true;
+      throw new Error(`Not implemented for tile ${tileID}`);
 
-      const [left, bottom, right, top] = tileBoundary(x, y);
-      const url = `https://api.openstreetmap.org/api/0.6/map?bbox=${left},${bottom},${right},${top}`;
+      // this.tiles.set(tileID, true);
+
+      // const [left, bottom, right, top] = tileBoundary(x, y);
+      // const url = `https://api.openstreetmap.org/api/0.6/map?bbox=${left},${bottom},${right},${top}`;
    }
 
    addTile(tile: Tile) {
-      forEachKeyValue(tile.ways, (_, way) => this.addWay(way));
-      forEach(tile.relations, this.findRestrictions);
+      this.nodes = tile.nodes;
+      tile.ways.forEach(way => this.makeConnections(way));
+      forEach(tile.relations, this.findRestrictions.bind(this));
    }
 
    /**
@@ -145,18 +109,9 @@ export class Graph {
       measure.distanceLatLon(p1, p2);
 
    /* eslint-disable prefer-destructuring, dot-notation */
-   addWay(way: Way) {
+   makeConnections(way: Way) {
       let oneway = '';
       let weight = 0;
-
-      const prepareCache = (n: Node) => {
-         if (!(n.id in this.locations)) {
-            this.locations[n.id] = [n.lat, n.lon];
-         }
-         if (!(n.id in this.routing)) {
-            this.routing[n.id] = new Object(null) as { [id: number]: number };
-         }
-      };
 
       if (way.tags !== undefined) {
          const roadType = way.tags[Tag.RoadType] ?? '';
@@ -185,21 +140,20 @@ export class Graph {
 
          // calculate what vehicles can use this route
          weight =
-            this.spec.weights[roadType] ?? this.spec.weights[railType] ?? 0;
+            this.config.weights[roadType] ?? this.config.weights[railType] ?? 0;
       }
 
       for (let i = 1; i < way.nodes.length; i++) {
-         const n1 = way.nodes[(i = 1)];
+         const n1 = way.nodes[i - 1];
          const n2 = way.nodes[i];
 
-         prepareCache(n1);
-         prepareCache(n2);
-
          if (!['-1', 'reverse'].includes(oneway)) {
-            this.routing[n1.id][n2.id] = weight;
+            // TODO: connection can't be stored within node instance becaues
+            // it needs to vary by transport type
+            n1.connect(n2, weight);
          }
          if (!['yes', 'true', 'one'].includes(oneway)) {
-            this.routing[n2.id][n1.id] = weight;
+            n2.connect(n1, weight);
          }
       }
    }
@@ -211,14 +165,10 @@ export class Graph {
       const specificRestriction = Tag.Restriction + ':' + this.transport;
 
       if (
-         [Tag.Restriction, specificRestriction].includes(r.tags[Tag.Type] ?? '')
-      ) {
-         // ignore relations that aren't restrictions
-         return;
-      }
-
-      if (
-         intersects((r.tags[Tag.Exception] ?? '').split(';'), this.spec.access)
+         intersects(
+            (r.tags[Tag.Exception] ?? '').split(';'),
+            this.config.access
+         )
       ) {
          // ignore restrictions if access type is an explicit exception
          return;
@@ -263,7 +213,7 @@ export class Graph {
    }
 
    /**
-    * Sort node lists so common nodes are adjacent.
+    * Sort node groups so common nodes are adjacent.
     * @example
     * [
     *    [a, b], [b, c], [c], [c, d, e], [e, f]
@@ -336,23 +286,23 @@ export class Graph {
 
       if (noAccess.test(type)) {
          const key: number[] = [...fromNodeIDs(), ...viaNodeIDs(), toNodeID()];
-         this.forbiddenMoves[key.join(',')] = true;
+         this.forbiddenMoves.set(key.join(','), true);
       } else if (onlyAccess.test(type)) {
          const key: number[] = [...fromNodeIDs(), toNodeID()];
-         this.mandatoryMoves[key.join(',')] = viaNodeIDs();
+         this.mandatoryMoves.set(key.join(','), viaNodeIDs());
       }
    }
 
    /**
-    * Find nearest node that be the start of a route.
+    * Find nearest node to start the route.
     */
-   findNearestNodeID(lat: number, lon: number): string | null {
+   nearestNode(lat: number, lon: number): number | null {
       this.ensureTiles(lat, lon);
       let nodeDistance = Number.MAX_VALUE;
-      let nearestNodeID: string | null = null;
+      let nearestNodeID: number | null = null;
 
-      forEachKeyValue(this.locations, (nodeID, point) => {
-         const distance = measure.distance(point[0], point[1], lat, lon);
+      this.nodes.forEach((node, nodeID) => {
+         const distance = this.distance(node.point(), [lat, lon]);
          if (distance < nodeDistance) {
             nodeDistance = distance;
             nearestNodeID = nodeID;
