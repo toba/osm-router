@@ -183,7 +183,7 @@ export class Plan {
       if (plan.required.length > 0) {
          required = plan.required;
       } else {
-         required = this.rules.getMandatory(allNodes);
+         required = this.rules.getRequired(allNodes);
 
          if (required.length > 0) {
             this.closeNode = false;

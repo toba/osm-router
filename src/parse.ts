@@ -85,6 +85,7 @@ export const addTags = <T extends OsmItem>(
 };
 
 /**
+ * Optimize OSM XML object for subsequent operations.
  * @param xml Pre-parsed object having the shape of OSM XML
  */
 export function normalizeOsmXML(xml: OsmXML): Tile {
@@ -142,11 +143,13 @@ export function normalizeOsmXML(xml: OsmXML): Tile {
 }
 
 /**
+ * Convert XML text to an XML shaped object using XPath.
  * @see https://github.com/tuananh/camaro/blob/develop/API.md
  * @see https://devhints.io/xpath
  */
 export function parseOsmXML(xmlText: string): Tile {
    const template = {
+      // initially all nodes but later filtered to only those in routable ways
       nodes: [
          '/osm/node',
          {
@@ -155,6 +158,7 @@ export function parseOsmXML(xmlText: string): Tile {
             lon: 'number(@lon)'
          }
       ],
+      // only include ways that have road or rail type tags
       ways: [
          `/osm/way[tag[@k='${Tag.RoadType}' or @k='${Tag.RailType}']]`,
          {
@@ -169,6 +173,7 @@ export function parseOsmXML(xmlText: string): Tile {
             ]
          }
       ],
+      // only include relations with type tag indicating a restriction
       relations: [
          `/osm/relation[tag[@k='${Tag.Type}'][starts-with(@v, '${Tag.Restriction}')]]`,
          {

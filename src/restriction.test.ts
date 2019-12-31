@@ -1,8 +1,8 @@
 import '@toba/test';
-import { allowTransport } from './restriction';
+import { allowTravelMode } from './restriction';
 import { Tag, WayType, TagMap } from './types';
 
-it('checks if transport is allowed in way', () => {
+it('checks if travel mode is allowed in way', () => {
    const tags: TagMap = {
       [Tag.RoadType]: WayType.ServiceRoad,
       [Tag.OneWay]: 'yes',
@@ -11,5 +11,5 @@ it('checks if transport is allowed in way', () => {
    };
    const canUse = [Tag.Access, Tag.Vehicle, Tag.MotorVehicle, Tag.MotorCar];
 
-   expect(allowTransport(tags, canUse)).toBe(false);
+   expect(allowTravelMode(tags, canUse)).toBe(false);
 });

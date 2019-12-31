@@ -1,6 +1,6 @@
 import { is, forEach } from '@toba/node-tools';
 import { Node, Tag, Way, WayType, TravelMode, RouteConfig } from './types';
-import { allowTransport } from './restriction';
+import { allowTravelMode } from './restriction';
 
 /** Pattern of values for reverse one-way */
 const reverse = /^(-1|reverse)$/;
@@ -80,7 +80,7 @@ export class Graph {
             weight = this.config.weights[railType] ?? 0;
          }
 
-         if (weight <= 0 || !allowTransport(way.tags, this.config.canUse)) {
+         if (weight <= 0 || !allowTravelMode(way.tags, this.config.canUse)) {
             return [];
          }
       }
