@@ -70,7 +70,7 @@ function point(this: Node): [number, number] {
  */
 export const addTags = <T extends OsmItem>(
    tags: TagXML[],
-   item: T,
+   item: Partial<T>,
    synonyms: { [alt: string]: string } = {}
 ): T => {
    if (tags !== undefined && tags.length > 0) {
@@ -81,7 +81,7 @@ export const addTags = <T extends OsmItem>(
       });
       item.tags = out;
    }
-   return item;
+   return item as T;
 };
 
 /**

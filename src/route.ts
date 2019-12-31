@@ -1,23 +1,17 @@
 import { measure } from '@toba/map';
-import { is, forEach, removeItem } from '@toba/node-tools';
-import { RouteConfig, TravelMode, Node, Tile, Point } from './types';
+import { is, forEach } from '@toba/node-tools';
+import { RouteConfig, TravelMode, Node, Tile, Point, Status } from './types';
 import { whichTile } from './tile';
 import { preferences } from './config';
 import { Graph } from './graph';
 import { Restrictions } from './restriction';
-import { PlanItem, Plan } from './plan';
-import { nextToLast } from './sequence';
-
-export const enum Status {
-   NoRoute,
-   Success,
-   GaveUp
-}
+import { Plan } from './plan';
 
 /**
  * @see https://jakobmiksch.eu/post/openstreetmap_routing/
  */
 export class Route {
+   plan: Plan;
    graph: Graph;
    rules: Restrictions;
    nodes: Map<number, Node>;
@@ -53,14 +47,6 @@ export class Route {
          this.addTile(tile);
       }
    }
-
-   nodeLatLon = (nodeID: number) => this.nodes.get(nodeID)?.point();
-
-   /**
-    * Whether nodes with IDs have been cached.
-    */
-   hasNodes = (...nodes: number[]): boolean =>
-      nodes.findIndex(n => !this.nodes.has(n)) == -1;
 
    /**
     * Ensure tiles are available for routing.
@@ -119,184 +105,15 @@ export class Route {
     * @param startNode Node ID
     * @param endNode Node ID
     */
-   execute(startNode: number, endNode: number): [Status, number[]] {
-      const plan = new Plan(this.nodes, this.graph, this.rules);
+   execute(startNode: number, endNode: number): [Status, number[]?] {
+      if (this.plan === undefined) {
+         this.plan = new Plan(this.nodes, this.graph, this.rules);
+      }
 
-      if (!plan.prepare(startNode, endNode)) {
+      if (!this.plan.prepare(startNode, endNode)) {
          return [Status.NoRoute, []];
       }
 
-      plan.search(endNode, 100000);
-
-      // const plans: PlanItem[] = [];
-      // const closed = new Set([startNode]);
-
-      // this.graph.ensure(startNode, endNode);
-
-      // if (startNode == endNode) {
-      //    return [Status.NoRoute, []];
-      // }
-      // const endPoint = this.nodes.get(endNode)!.point();
-
-      // let closeNode = true;
-
-      // const addToPlans = (
-      //    fromNode: number,
-      //    toNode: number,
-      //    plan: PlanItem,
-      //    weight = 1
-      // ) => {
-      //    if (weight == 0) {
-      //       // ignore non-traversible route
-      //       return;
-      //    }
-
-      //    if (!this.hasNodes(toNode, fromNode)) {
-      //       // nodes must be known
-      //       return;
-      //    }
-
-      //    const toLatLon = this.nodes.get(toNode)!.point();
-      //    const fromLatLon = this.nodes.get(fromNode)!.point();
-      //    /** Sequence of node IDs */
-      //    const sequence = plan.nodes;
-
-      //    if (nextToLast(sequence) == toNode) {
-      //       // do not turn around at a node (i.e. a->b->a)
-      //       return;
-      //    }
-
-      //    this.ensureTiles(toLatLon[0], toLatLon[1]);
-
-      //    /**
-      //     * Cost of connecting two nodes — higher preference means lower cost
-      //     */
-      //    const edgeCost = this.distance(fromLatLon, toLatLon) / weight;
-      //    const totalCost = plan.cost + edgeCost;
-      //    const heuristicCost = totalCost + this.distance(toLatLon, endPoint);
-      //    const allNodes = [toNode].concat(plan.nodes);
-
-      //    if (this.rules.isForbidden(allNodes)) {
-      //       closeNode = true;
-      //    }
-
-      //    // check if there is already a way to the end node
-      //    const endPlanItem = plans.find(q => q.endNode === toNode);
-
-      //    if (endPlanItem !== undefined) {
-      //       if (endPlanItem.cost < totalCost) {
-      //          // If we do, and known totalCost to end is lower we can ignore the queueSoFar path
-      //          return;
-      //       }
-      //       // If the queued way to end has higher total cost, remove it (and add the queueSoFar scenario, as it's cheaper)
-      //       removeItem(plans, endPlanItem);
-      //    }
-
-      //    let forceNextNodes: number[] = [];
-
-      //    if (plan.mandatoryNodes.length > 0) {
-      //       forceNextNodes = plan.mandatoryNodes;
-      //    } else {
-      //       forceNextNodes = this.rules.getMandatory(allNodes);
-      //       if (forceNextNodes.length > 0) {
-      //          closeNode = false;
-      //       }
-      //    }
-
-      //    const nextPlan: PlanItem = {
-      //       cost: totalCost,
-      //       heuristicCost,
-      //       nodes: allNodes,
-      //       endNode: toNode,
-      //       mandatoryNodes: forceNextNodes
-      //    };
-
-      //    // Try to insert, keeping the queue ordered by decreasing heuristic cost
-      //    let count = 0;
-      //    let inserted = false;
-
-      //    forEach(plans, q => {
-      //       // TODO: better filter?
-      //       if ((q.heuristicCost ?? 0) > (nextPlan.heuristicCost ?? 0)) {
-      //          plans.splice(count, 0, nextPlan);
-      //          inserted = true;
-      //          return false;
-      //       }
-      //       count++;
-      //    });
-
-      //    if (!inserted) {
-      //       plans.push(nextPlan);
-      //    }
-      // };
-
-      // start new plan for each node connected to the startNode
-      // this.graph.each(startNode, (weight, linkedNode) => {
-      //    addToPlans(
-      //       startNode,
-      //       linkedNode,
-      //       {
-      //          cost: 0,
-      //          nodes: [startNode],
-      //          mandatoryNodes: []
-      //       },
-      //       weight
-      //    );
-      // });
-
-      // limit search duration
-      // let count = 0;
-
-      // while (count < 1000000) {
-      //    count++;
-      //    closeNode = true;
-      //    let nextPlan: PlanItem;
-
-      //    if (plans.length > 0) {
-      //       nextPlan = plans.pop()!;
-      //    } else {
-      //       return [Status.NoRoute, []];
-      //    }
-
-      //    // TODO: validate assertion
-      //    const consideredNode = nextPlan.endNode!;
-
-      //    if (closed.has(consideredNode)) {
-      //       // eslint-disable-next-line
-      //       continue;
-      //    }
-
-      //    if (consideredNode === endNode) {
-      //       return [Status.Success, nextPlan.nodes];
-      //    }
-
-      //    if (nextPlan.mandatoryNodes.length > 0) {
-      //       closeNode = false;
-      //       const nextNode = nextPlan.mandatoryNodes.shift()!;
-
-      //       if (
-      //          this.graph.has(nextNode) &&
-      //          this.graph.has(consideredNode, nextNode)
-      //       ) {
-      //          addToPlans(
-      //             consideredNode,
-      //             nextNode,
-      //             nextPlan,
-      //             this.graph.value(consideredNode, nextNode)
-      //          );
-      //       }
-      //    } else if (this.graph.has(consideredNode)) {
-      //       this.graph.each(consideredNode, (weight, nextNode) => {
-      //          if (!closed.has(nextNode)) {
-      //             addToPlans(consideredNode, nextNode, nextPlan, weight);
-      //          }
-      //       });
-      //    }
-
-      //    if (closeNode) {
-      //       closed.add(consideredNode);
-      //    }
-      // }
-      return [Status.GaveUp, []];
+      return this.plan.find(endNode, 100000);
    }
 }

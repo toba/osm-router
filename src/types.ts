@@ -236,3 +236,9 @@ export interface Tile {
    ways: Map<number, Way>;
    relations: Relation[];
 }
+
+export const enum Status {
+   NoRoute,
+   Success,
+   GaveUp
+}

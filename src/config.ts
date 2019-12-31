@@ -2,6 +2,7 @@ import { RouteMode, TravelMode, WayType, Tag } from './types';
 
 export const preferences: RouteMode = {
    [TravelMode.Car]: {
+      name: TravelMode.Car,
       weights: {
          [WayType.Freeway]: 10,
          [WayType.Trunk]: 10,
@@ -16,6 +17,7 @@ export const preferences: RouteMode = {
       canUse: [Tag.Access, Tag.Vehicle, Tag.MotorVehicle, Tag.MotorCar]
    },
    [TravelMode.Bus]: {
+      name: TravelMode.Bus,
       weights: {
          [WayType.Freeway]: 10,
          [WayType.Trunk]: 10,
@@ -36,6 +38,7 @@ export const preferences: RouteMode = {
       ]
    },
    [TravelMode.Bicycle]: {
+      name: TravelMode.Bicycle,
       weights: {
          [WayType.Trunk]: 0.05,
          [WayType.Primary]: 0.3,
@@ -54,6 +57,7 @@ export const preferences: RouteMode = {
       canUse: [Tag.Access, Tag.Vehicle, Tag.Bicycle]
    },
    [TravelMode.Horse]: {
+      name: TravelMode.Horse,
       weights: {
          [WayType.Primary]: 0.05,
          [WayType.Secondary]: 0.15,
@@ -70,6 +74,7 @@ export const preferences: RouteMode = {
       canUse: [Tag.Access, Tag.Horse]
    },
    [TravelMode.Tram]: {
+      name: TravelMode.Tram,
       weights: {
          [WayType.Tram]: 1,
          [WayType.LightRail]: 1
@@ -77,6 +82,7 @@ export const preferences: RouteMode = {
       canUse: [Tag.Access]
    },
    [TravelMode.Train]: {
+      name: TravelMode.Train,
       weights: {
          [WayType.Rail]: 1,
          [WayType.LightRail]: 1,

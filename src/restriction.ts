@@ -132,10 +132,16 @@ export class Restrictions {
       return restrictionType;
    }
 
+   /**
+    * Execute method for each forbidden pattern.
+    */
    eachForbidden(fn: (enabled: boolean, pattern: string) => void) {
       this.forbidden.forEach(fn);
    }
 
+   /**
+    * Execute method for each mandatory pattern.
+    */
    eachMandatory(fn: (nodes: number[], pattern: string) => void) {
       this.mandatory.forEach(fn);
    }
@@ -157,7 +163,7 @@ export class Restrictions {
    }
 
    /**
-    * List of nodes that are mandatory after a given node sequence.
+    * Nodes that are mandatory after a given node sequence.
     */
    getMandatory(nodes: number[]): number[] {
       const list = nodes.join(',');

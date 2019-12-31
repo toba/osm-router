@@ -36,8 +36,7 @@ export class Graph {
    }
 
    /**
-    * Create weighted edges from way.
-    * @returns Routable nodes
+    * Create weighted edges from way and return routable nodes.
     */
    fromWay(way: Way): Node[] {
       let oneway = '';
@@ -108,18 +107,20 @@ export class Graph {
     */
    has(from: number, to?: number) {
       const exists = this.edges.has(from);
-      return to === undefined ? exists : this.edges.get(from)!.has(to);
+      return exists && to !== undefined
+         ? this.edges.get(from)!.has(to)
+         : exists;
    }
 
    /**
-    * Preference for the connection between `from` node and `to` node. Zero is
+    * Weight for the connection between `from` node and `to` node. Zero is
     * returned if the nodes aren't connected.
     */
-   value = (from: number, to: number): number =>
+   weight = (from: number, to: number): number =>
       this.edges.get(from)?.get(to) ?? 0;
 
    /**
-    * Add connection preference between `from` and `to` node.
+    * Add connection weight between `from` and `to` node.
     */
    add(from: Node, to: Node, preference: number) {
       if (!this.edges.has(from.id)) {
@@ -129,7 +130,7 @@ export class Graph {
    }
 
    /**
-    * Execute method for each `toNode` connected to `nodeID`.
+    * Execute method for each `toNode` that `nodeID` connects to.
     */
    each(nodeID: number, fn: (preference: number, toNode: number) => void) {
       const nodes = this.edges.get(nodeID);

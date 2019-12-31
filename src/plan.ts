@@ -1,6 +1,6 @@
 import { measure } from '@toba/map';
 import { removeItem, forEach } from '@toba/tools';
-import { Node, Point } from './types';
+import { Node, Point, Status } from './types';
 import { Graph } from './graph';
 import { Restrictions } from './restriction';
 import { nextToLast } from './sequence';
@@ -12,7 +12,7 @@ export interface PlanItem {
    cost: number;
    heuristicCost?: number;
    /** IDs of nodes that must be traversed in this plan */
-   mandatoryNodes: number[];
+   required: number[];
    endNode?: number;
 }
 
@@ -51,21 +51,27 @@ export class Plan {
             {
                cost: 0,
                nodes: [startNode],
-               mandatoryNodes: []
+               required: []
             },
             weight
          );
       });
 
-      //this.search(endNode, 100000);
-
       return true;
    }
 
-   search(endNode: number, max: number) {
+   get length() {
+      return this.items.length;
+   }
+
+   /**
+    * Find lowest cost node sequence to reach end node within maximum
+    * iterations.
+    */
+   find(endNode: number, max: number): [Status, number[]?] {
       let count = 0;
 
-      while (count < 1000000) {
+      while (count < max) {
          count++;
          this.closeNode = true;
          let nextPlan: PlanItem;
@@ -73,7 +79,7 @@ export class Plan {
          if (this.items.length > 0) {
             nextPlan = this.items.pop()!;
          } else {
-            return [Status.NoRoute, []];
+            return [Status.NoRoute];
          }
 
          // TODO: validate assertion
@@ -88,9 +94,9 @@ export class Plan {
             return [Status.Success, nextPlan.nodes];
          }
 
-         if (nextPlan.mandatoryNodes.length > 0) {
+         if (nextPlan.required.length > 0) {
             this.closeNode = false;
-            const nextNode = nextPlan.mandatoryNodes.shift()!;
+            const nextNode = nextPlan.required.shift()!;
 
             if (
                this.graph.has(nextNode) &&
@@ -100,7 +106,7 @@ export class Plan {
                   consideredNode,
                   nextNode,
                   nextPlan,
-                  this.graph.value(consideredNode, nextNode)
+                  this.graph.weight(consideredNode, nextNode)
                );
             }
          } else if (this.graph.has(consideredNode)) {
@@ -115,6 +121,8 @@ export class Plan {
             this.closed.add(consideredNode);
          }
       }
+
+      return [Status.GaveUp];
    }
 
    /**
@@ -126,11 +134,11 @@ export class Plan {
    add(fromNode: number, toNode: number, plan: PlanItem, weight = 1) {
       if (weight == 0) {
          // ignore non-traversible route
-         return this;
+         return;
       }
       if (!this.hasNodes(toNode, fromNode)) {
          // nodes must be known
-         return this;
+         return;
       }
 
       const toLatLon = this.nodes.get(toNode)!.point();
@@ -140,7 +148,7 @@ export class Plan {
 
       if (nextToLast(sequence) == toNode) {
          // do not turn around at a node (i.e. a->b->a)
-         return this;
+         return;
       }
 
       // ensure tiles
@@ -159,24 +167,25 @@ export class Plan {
       }
 
       // check if there is already a way to the end node
-      const endPlanItem = this.items.find(q => q.endNode === toNode);
+      const endPlanItem = this.items.find(p => p.endNode === toNode);
 
       if (endPlanItem !== undefined) {
          if (endPlanItem.cost < totalCost) {
             // If we do, and known totalCost to end is lower we can ignore the queueSoFar path
-            return this;
+            return;
          }
          // If the queued way to end has higher total cost, remove it (and add the queueSoFar scenario, as it's cheaper)
          this.remove(endPlanItem);
       }
 
-      let forceNextNodes: number[] = [];
+      let required: number[] = [];
 
-      if (plan.mandatoryNodes.length > 0) {
-         forceNextNodes = plan.mandatoryNodes;
+      if (plan.required.length > 0) {
+         required = plan.required;
       } else {
-         forceNextNodes = this.rules.getMandatory(allNodes);
-         if (forceNextNodes.length > 0) {
+         required = this.rules.getMandatory(allNodes);
+
+         if (required.length > 0) {
             this.closeNode = false;
          }
       }
@@ -186,7 +195,7 @@ export class Plan {
          heuristicCost,
          nodes: allNodes,
          endNode: toNode,
-         mandatoryNodes: forceNextNodes
+         required
       };
 
       // Try to insert, keeping the queue ordered by decreasing heuristic cost
@@ -205,12 +214,16 @@ export class Plan {
       if (!inserted) {
          this.items.push(nextPlan);
       }
-
-      return this;
    }
 
+   /**
+    * Remove item from the plan list.
+    */
    remove = (item: PlanItem) => removeItem(this.items, item);
 
+   /**
+    * Insert item into plan list at `index` position.
+    */
    insert = (index: number, item: PlanItem) =>
       this.items.splice(index, 0, item);
 }
