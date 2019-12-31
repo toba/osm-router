@@ -115,9 +115,9 @@ export const enum Tag {
 }
 
 /**
- * Modes of transportion.
+ * Modes of travel.
  */
-export const enum Transport {
+export const enum TravelMode {
    Car = 'car',
    Bus = 'bus',
    Bicycle = 'bicycle',
@@ -161,10 +161,10 @@ export const enum Access {
 }
 
 export interface RouteConfig {
-   name?: string;
-   /** Preferred road type key */
-   preference: { [key: string]: number };
-   /** Usable access types */
+   name: string;
+   /** Weights keyed to road types — larger numbers are preferred */
+   weights: { [key: string]: number };
+   /** Usable access types for a mode of travel */
    canUse: Tag[];
 }
 

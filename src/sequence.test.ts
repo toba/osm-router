@@ -1,6 +1,6 @@
 import '@toba/test';
 import { reverse } from '@toba/node-tools';
-import { sharedNode, nextToLast, last, sortNodeSets } from './segment';
+import { sharedNode, nextToLast, last, sortNodeSets } from './sequence';
 import { Node } from './types';
 
 const nodes: Node[] = [];

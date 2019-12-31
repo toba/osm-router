@@ -1,105 +1,146 @@
-import { measure } from '@toba/map';
 import { is, forEach } from '@toba/node-tools';
-import { RouteConfig, Transport, Node, Tile } from './types';
-import { whichTile } from './tile';
-import { preferences } from './config';
-import { Preferences } from './preference';
-import { Restrictions } from './restriction';
+import { Node, Tag, Way, WayType, TravelMode, RouteConfig } from './types';
+import { allowTransport } from './restriction';
 
+/** Pattern of values for reverse one-way */
+const reverse = /^(-1|reverse)$/;
+/** Pattern of values for forward one-way */
+const forward = /^(yes|true|one)$/;
+/** Pattern of values for one-way key */
+const hasValue = /^(yes|true|1|-1)$/;
+
+/**
+ * Preferred connections between nodes for mode of travel.
+ */
 export class Graph {
-   preferences: Preferences;
-   restrictions: Restrictions;
-   nodes: Map<number, Node>;
-   /** Cached tiles */
-   tiles: Map<string, boolean>;
-   /** Mode of transportation */
-   transport: string;
+   /** Weights assigned to node-node connections based on `RouteConfig` */
+   edges: Map<number, Map<number, number>>;
+   travelMode: string;
    config: RouteConfig;
-   /** Whether to download tile data as needed */
-   loadAsNeeded: false;
 
-   constructor(
-      transport: RouteConfig | Transport,
-      tile?: Tile,
-      expireData = 30
-   ) {
-      this.tiles = new Map();
-      this.nodes = new Map();
-
-      if (is.object<RouteConfig>(transport)) {
-         this.transport = transport.name!;
-         this.config = transport;
-      } else {
-         this.transport = transport;
-         // TODO: clone instead of assign
-         this.config = preferences[transport];
-      }
-
-      this.preferences = new Preferences(this.config, this.transport);
-      this.restrictions = new Restrictions(this.config, this.transport);
-
-      if (tile !== undefined) {
-         this.loadAsNeeded = false;
-         this.addTile(tile);
-      }
-   }
-
-   nodeLatLon = (nodeID: number) => this.nodes.get(nodeID)?.point();
-
-   /**
-    * Ensure tiles are available for routing.
-    */
-   ensureTiles(lat: number, lon: number) {
-      if (!this.loadAsNeeded) {
-         return;
-      }
-      const [x, y] = whichTile(lat, lon);
-      const tileID = `${x},${y}`;
-
-      if (this.tiles.has(tileID)) {
-         return;
-      }
-      throw new Error(`Not implemented for tile ${tileID}`);
-
-      // this.tiles.set(tileID, true);
-
-      // const [left, bottom, right, top] = tileBoundary(x, y);
-      // const url = `https://api.openstreetmap.org/api/0.6/map?bbox=${left},${bottom},${right},${top}`;
-   }
-
-   addTile(tile: Tile) {
-      tile.ways.forEach(way => {
-         // only cache nodes that are part of routable ways
-         const routableNodes = this.preferences.fromWay(way);
-         forEach(routableNodes, n => this.nodes.set(n.id, n));
-      });
-      forEach(tile.relations, r => this.restrictions.fromRelation(r));
+   constructor(config: RouteConfig, travelMode: string) {
+      this.edges = new Map();
+      this.travelMode = travelMode;
+      this.config = config;
    }
 
    /**
-    * @param p1 Latitude/Longitude tuple
-    * @param p2 Latitude/Longitude tuple
+    * Throw error if any of the given nodes aren't connected.
     */
-   distance = (p1: [number, number], p2: [number, number]) =>
-      measure.distanceLatLon(p1, p2);
-
-   /**
-    * Find nearest node to start the route.
-    */
-   nearestNode(lat: number, lon: number): number | null {
-      this.ensureTiles(lat, lon);
-      let foundDistance = Number.MAX_VALUE;
-      let foundNode: number | null = null;
-
-      this.nodes.forEach((node, nodeID) => {
-         const distance = this.distance(node.point(), [lat, lon]);
-
-         if (distance < foundDistance) {
-            foundDistance = distance;
-            foundNode = nodeID;
+   ensure(...nodes: number[]) {
+      forEach(nodes, id => {
+         if (!this.has(id)) {
+            throw new Error(`Node ${id} does not exist in the graph`);
          }
       });
-
-      return foundNode;
    }
+
+   /**
+    * Create weighted edges from way.
+    * @returns Routable nodes
+    */
+   fromWay(way: Way): Node[] {
+      let oneway = '';
+      /**
+       * Preference for an edge (node connection). Higher values are preferred.
+       * A weight of 0 makes the way inaccessible.
+       */
+      let weight = 0;
+
+      if (way.tags !== undefined) {
+         const roadType = way.tags[Tag.RoadType];
+         const railType = way.tags[Tag.RailType];
+         const junction = way.tags[Tag.JunctionType];
+
+         oneway = way.tags[Tag.OneWay] ?? '';
+
+         if (
+            is.empty(oneway) &&
+            (junction == 'roundabout' ||
+               junction == 'circular' ||
+               roadType == WayType.Freeway)
+         ) {
+            // infer one-way for roundabouts and freeways
+            oneway = 'yes';
+         }
+
+         if (
+            this.travelMode == TravelMode.Walk ||
+            (hasValue.test(oneway) &&
+               way.tags[Tag.OneWay + ':' + this.travelMode] == 'no')
+         ) {
+            // disable one-way setting for foot traffic or explicit tag
+            oneway = 'no';
+         }
+
+         if (roadType !== undefined) {
+            weight = this.config.weights[roadType] ?? 0;
+         }
+
+         if (railType !== undefined && weight == 0) {
+            weight = this.config.weights[railType] ?? 0;
+         }
+
+         if (weight <= 0 || !allowTransport(way.tags, this.config.canUse)) {
+            return [];
+         }
+      }
+
+      for (let i = 1; i < way.nodes.length; i++) {
+         const n1 = way.nodes[i - 1];
+         const n2 = way.nodes[i];
+
+         if (!reverse.test(oneway)) {
+            // foward travel is allowed from n1 to n2
+            this.add(n1, n2, weight);
+         }
+         if (!forward.test(oneway)) {
+            // reverse travel is allowed from n2 to n1
+            this.add(n2, n1, weight);
+         }
+      }
+      return way.nodes;
+   }
+
+   /**
+    * Whether `from` node exists and, optionally, if it is connected to a `to`
+    * node ID.
+    */
+   has(from: number, to?: number) {
+      const exists = this.edges.has(from);
+      return to === undefined ? exists : this.edges.get(from)!.has(to);
+   }
+
+   /**
+    * Preference for the connection between `from` node and `to` node. Zero is
+    * returned if the nodes aren't connected.
+    */
+   value = (from: number, to: number): number =>
+      this.edges.get(from)?.get(to) ?? 0;
+
+   /**
+    * Add connection preference between `from` and `to` node.
+    */
+   add(from: Node, to: Node, preference: number) {
+      if (!this.edges.has(from.id)) {
+         this.edges.set(from.id, new Map());
+      }
+      this.edges.get(from.id)!.set(to.id, preference);
+   }
+
+   /**
+    * Execute method for each `toNode` connected to `nodeID`.
+    */
+   each(nodeID: number, fn: (preference: number, toNode: number) => void) {
+      const nodes = this.edges.get(nodeID);
+      if (nodes === undefined) {
+         return;
+      }
+      nodes.forEach(fn);
+   }
+
+   /**
+    * All connections for `from` node.
+    */
+   for = (from: Node) => this.edges.get(from.id);
 }

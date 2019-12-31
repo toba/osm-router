@@ -1,6 +1,6 @@
 import { intersects, forEach } from '@toba/node-tools';
-import { Relation, Tag, Transport, RouteConfig, TagMap } from './types';
-import { Segment } from './segment';
+import { Relation, Tag, TravelMode, RouteConfig, TagMap } from './types';
+import { Sequence } from './sequence';
 
 // https://www.measurethat.net/Benchmarks/Show/4797/1/js-regex-vs-startswith-vs-indexof
 const forbidPrefix = /^no_/;
@@ -26,6 +26,19 @@ export function allowTransport(wayTags: TagMap, accessTypes: Tag[]): boolean {
 }
 
 /**
+ * @param nodeIDs Sequence of IDs that trigger the restriction
+ */
+function addRestriction<T>(
+   hash: Map<string, T>,
+   value: T,
+   nodeIDs: number[],
+   toNode: number
+) {
+   nodeIDs.push(toNode);
+   hash.set(nodeIDs.join(','), value);
+}
+
+/**
  * Mandatory or forbidden node sequences for type of transport.
  */
 export class Restrictions {
@@ -37,33 +50,69 @@ export class Restrictions {
    mandatory: Map<string, number[]>;
    forbidden: Map<string, boolean>;
    /** Mode of transportation */
-   transport: string;
+   travelMode: string;
    config: RouteConfig;
 
-   constructor(config: RouteConfig, transport: string) {
-      this.transport = transport;
+   constructor(config: RouteConfig, travelMode: string) {
+      this.travelMode = travelMode;
       this.config = config;
       this.mandatory = new Map();
       this.forbidden = new Map();
    }
 
+   /**
+    * Build restrictions from OSM relation members.
+    */
    fromRelation(r: Relation) {
+      const restrictionType = this.getRestrictionType(r);
+
+      if (restrictionType === null) {
+         return;
+      }
+      const sequence = new Sequence(r);
+
+      if (sequence.sort().valid) {
+         if (forbidPrefix.test(restrictionType)) {
+            addRestriction(
+               this.forbidden,
+               true,
+               [...sequence.fromNodes(), ...sequence.viaNodes()],
+               sequence.toNode()
+            );
+         } else if (requirePrefix.test(restrictionType)) {
+            addRestriction(
+               this.mandatory,
+               sequence.viaNodes(),
+               sequence.fromNodes(),
+               sequence.toNode()
+            );
+         }
+      } else {
+         console.error(`Relation ${r.id} could not be processed`);
+      }
+   }
+
+   /**
+    * Retrieve restriction type from relation or `null` if there are no
+    * applicable restrictions.
+    */
+   private getRestrictionType(r: Relation): string | null {
       const exceptions = r.tags[Tag.Exception]?.split(';') ?? [];
 
       if (intersects(exceptions, this.config.canUse)) {
          // ignore restrictions if usable access is specifically exempted
-         return;
+         return null;
       }
 
-      const specificRestriction = Tag.Restriction + ':' + this.transport;
+      const specificRestriction = Tag.Restriction + ':' + this.travelMode;
 
       if (
-         this.transport == Transport.Walk &&
+         this.travelMode == TravelMode.Walk &&
          r.tags[Tag.Type] != specificRestriction &&
          !(specificRestriction in r.tags)
       ) {
          // ignore walking restrictions if not explicit
-         return;
+         return null;
       }
 
       /**
@@ -77,29 +126,10 @@ export class Restrictions {
          !restrictPrefix.test(restrictionType)
       ) {
          // missing or inapplicable restriction type
-         return;
+         return null;
       }
 
-      const segment = new Segment(r);
-
-      if (segment.sort().valid) {
-         if (forbidPrefix.test(restrictionType)) {
-            // forbid restriction is identified by text list of node IDs
-            const key: number[] = [
-               ...segment.fromNodes(),
-               ...segment.viaNodes(),
-               segment.toNode()
-            ];
-            this.forbidden.set(key.join(','), true);
-         } else if (requirePrefix.test(restrictionType)) {
-            // mandatory restriction is identified by text list of node IDs
-            // at start and end of segment
-            const key: number[] = [...segment.fromNodes(), segment.toNode()];
-            this.mandatory.set(key.join(','), segment.viaNodes());
-         }
-      } else {
-         console.error(`Relation ${r.id} could not be processed`);
-      }
+      return restrictionType;
    }
 
    eachForbidden(fn: (enabled: boolean, pattern: string) => void) {
@@ -108,5 +138,39 @@ export class Restrictions {
 
    eachMandatory(fn: (nodes: number[], pattern: string) => void) {
       this.mandatory.forEach(fn);
+   }
+
+   /**
+    * Whether node sequence is forbidden.
+    */
+   isForbidden(nodes: number[]): boolean {
+      const list = nodes.join(',');
+      let forbidden = false;
+
+      this.forbidden.forEach((enabled, pattern) => {
+         if (!forbidden && enabled && pattern.includes(list)) {
+            forbidden = true;
+         }
+      });
+
+      return forbidden;
+   }
+
+   /**
+    * List of nodes that are mandatory after a given node sequence.
+    */
+   getMandatory(nodes: number[]): number[] {
+      const list = nodes.join(',');
+      let mandatory: number[] | undefined;
+      let found = false;
+
+      this.mandatory.forEach((requiredNodes, pattern) => {
+         if (!found && list.endsWith(pattern)) {
+            mandatory = requiredNodes;
+            found = true;
+         }
+      });
+
+      return mandatory !== undefined ? mandatory : [];
    }
 }

@@ -22,7 +22,7 @@ export function sortNodeSets(nodes: Node[][]): boolean {
       const common = sharedNode(nodes[i], nodes[j]);
 
       if (common === undefined) {
-         console.error(`No common node connecting relation members`);
+         console.error('No common node connecting relation members');
          return false;
       }
       /** Last index of first group */
@@ -40,7 +40,7 @@ export function sortNodeSets(nodes: Node[][]): boolean {
       }
 
       if (nodes[i][lastIndex] !== nodes[j][0]) {
-         console.error(`Relation member common nodes are not adjacent`);
+         console.error('Relation member common nodes are not adjacent');
          return false;
       }
    }
@@ -48,9 +48,9 @@ export function sortNodeSets(nodes: Node[][]): boolean {
 }
 
 /**
- * Segment of nodes grouped into `from`, `via` and `to` sets.
+ * Sequence of nodes grouped into `from`, `via` and `to` sets.
  */
-export class Segment {
+export class Sequence {
    nodes: Node[][];
    /** Whether node sets could be sorted so all shared nodes are adjacent */
    valid = false;
@@ -84,8 +84,8 @@ export class Segment {
    }
 
    /**
-    * Node IDs between "from" and "to" and excluding common IDs connecting
-    * member sets.
+    * Node IDs between the first and last sets ("from" and "to") and excluding
+    * common IDs connecting the sets.
     */
    viaNodes = (): number[] => {
       const via: number[] = [];
@@ -101,7 +101,7 @@ export class Segment {
    };
 
    /**
-    * First unique Node ID traveller is going to.
+    * First unique node ID at destination.
     */
    toNode = (): number => last(this.nodes)[1].id;
 
