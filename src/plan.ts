@@ -1,6 +1,6 @@
 import { measure } from '@toba/map';
 import { removeItem, forEach } from '@toba/tools';
-import { Node, Point, Status } from './types';
+import { Node, Point, Status, Tile } from './types';
 import { Graph } from './graph';
 import { Restrictions } from './restriction';
 import { nextToLast } from './sequence';
@@ -37,18 +37,29 @@ export class Plan {
    endNode: number;
    /** Latitude/longitude of target route node */
    endPoint: Point;
+   /** Method to call when new tile data are loaded */
+   onLoad?: (t: Tile) => void;
 
-   constructor(nodes: Map<number, Node>, graph: Graph, rules: Restrictions) {
+   constructor(
+      nodes: Map<number, Node>,
+      graph: Graph,
+      rules: Restrictions,
+      onLoad?: (t: Tile) => void
+   ) {
       this.graph = graph;
       this.rules = rules;
       this.nodes = nodes;
+      this.onLoad = onLoad;
    }
 
    /**
     * Validate start and end points then create initial route options for
     * every node connected to the start point.
     *
-    * Tile data for linked nodes will be downloaded if not already cached.
+    * OSM data for linked nodes will be downloaded if not already cached.
+    *
+    * Start and end nodes should always exist after having been identified with
+    * `route.nearestNode()` since that method adds to the graph as needed.
     *
     * @returns Whether start and end points are valid
     */
@@ -183,21 +194,21 @@ export class Plan {
          option.cost + measure.distanceLatLon(toPoint, this.endPoint);
 
       // check if an option to reach the end point already exists
-      const endOption = this.options.find(p => p.endNode == toNode);
+      const optionToEnd = this.options.find(p => p.endNode == toNode);
 
-      if (endOption !== undefined) {
-         if (endOption.cost < option.cost) {
+      if (optionToEnd !== undefined) {
+         if (optionToEnd.cost < option.cost) {
             // if an option to reach the end exists and is a lower cost then the
             // option being considered then discard considered option
             return;
          }
          // if the existing option to reach the end has a higher cost then
          // remove it and continue with the cheaper option
-         this.remove(endOption);
+         this.remove(optionToEnd);
       }
 
       // ensure data exist for next node
-      await tiles.ensure(toPoint[0], toPoint[1]);
+      await tiles.ensure(toPoint[0], toPoint[1], this.onLoad);
 
       /** Nodes required after `fromNode` */
       let required: number[] = [];

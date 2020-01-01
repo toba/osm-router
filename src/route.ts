@@ -6,6 +6,7 @@ import { preferences } from './config';
 import { Graph } from './graph';
 import { Restrictions } from './restriction';
 import { Plan } from './plan';
+import { parseOsmXML } from './parse';
 
 /**
  * @see https://jakobmiksch.eu/post/openstreetmap_routing/
@@ -23,8 +24,7 @@ export class Route {
 
    constructor(
       configOrMode: RouteConfig | TravelMode,
-      tile?: Tile,
-      expireData = 30
+      refreshDataAfterDays = 5
    ) {
       this.nodes = new Map();
 
@@ -40,11 +40,7 @@ export class Route {
       this.graph = new Graph(this.config, this.travelMode);
       this.rules = new Restrictions(this.config, this.travelMode);
 
-      if (tile !== undefined) {
-         // if tile data was given then disable automatic fetching
-         tiles.fetchIfMissing = false;
-         this.addTile(tile);
-      }
+      tiles.cacheHours = refreshDataAfterDays * 24;
    }
 
    addTile(tile: Tile) {
@@ -61,9 +57,11 @@ export class Route {
    /**
     * Find nearest accessible node to begin the route.
     */
-   nearestNode(lat: number, lon: number): number | null {
-      tiles.ensure(lat, lon, this.loadAsNeeded);
-      let foundDistance = Number.MAX_VALUE;
+   async nearestNode(lat: number, lon: number): Promise<number | null> {
+      if (!(await tiles.ensure(lat, lon, this.addTile))) {
+         return null;
+      }
+      let foundDistance = Number.POSITIVE_INFINITY;
       let foundNode: number | null = null;
 
       this.nodes.forEach((node, nodeID) => {

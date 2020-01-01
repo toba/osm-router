@@ -2,11 +2,13 @@ import { is, forEach } from '@toba/node-tools';
 import { Node, Tag, Way, WayType, TravelMode, RouteConfig } from './types';
 import { allowTravelMode } from './restriction';
 
+/** Weight (or below) indicating way is not usable */
+const doNotUse = 0;
 /** Pattern of values for reverse one-way */
 const reverse = /^(-1|reverse)$/;
 /** Pattern of values for forward one-way */
 const forward = /^(yes|true|one)$/;
-/** Pattern of values assigned to one-way tag */
+/** Pattern of values assignable to one-way tag */
 const hasValue = /^(yes|true|1|-1)$/;
 
 /**
@@ -25,7 +27,7 @@ export class Graph {
    }
 
    /**
-    * Throw error if any of the given nodes aren't connected.
+    * Throw error if any of the given nodes aren't in the graph.
     */
    ensure(...nodes: number[]) {
       forEach(nodes, id => {
@@ -73,14 +75,19 @@ export class Graph {
          }
 
          if (roadType !== undefined) {
-            weight = this.config.weights[roadType] ?? 0;
+            weight = this.config.weights[roadType] ?? doNotUse;
          }
 
-         if (railType !== undefined && weight == 0) {
-            weight = this.config.weights[railType] ?? 0;
+         if (railType !== undefined && weight == doNotUse) {
+            // TODO: is this right? How can we arbitrarily switch to rail type?
+            // see if there's another way
+            weight = this.config.weights[railType] ?? doNotUse;
          }
 
-         if (weight <= 0 || !allowTravelMode(way.tags, this.config.canUse)) {
+         if (
+            weight <= doNotUse ||
+            !allowTravelMode(way.tags, this.config.canUse)
+         ) {
             return [];
          }
       }
@@ -117,7 +124,7 @@ export class Graph {
     * returned if the nodes aren't connected.
     */
    weight = (from: number, to: number): number =>
-      this.edges.get(from)?.get(to) ?? 0;
+      this.edges.get(from)?.get(to) ?? doNotUse;
 
    /**
     * Add connection weight between `from` and `to` node.
@@ -144,7 +151,8 @@ export class Graph {
    }
 
    /**
-    * Map node edges to an array using given function.
+    * Map node edges to an array using given function. This may be used, for
+    * example, to map edges to route options.
     */
    map<T>(nodeID: number, fn: (weight: number, toNode: number) => T): T[] {
       const nodes = this.edges.get(nodeID);
@@ -156,8 +164,8 @@ export class Graph {
       return out;
    }
 
-   /**
-    * All connections for `from` node.
-    */
-   for = (from: Node) => this.edges.get(from.id);
+   // /**
+   //  * All connections for `from` node.
+   //  */
+   // for = (from: Node) => this.edges.get(from.id);
 }

@@ -4,7 +4,10 @@ import { Node, Relation, Role } from './types';
 export const sharedNode = <T>(nodes1: T[], nodes2: T[]) =>
    nodes1.find(n => nodes2.includes(n));
 
-/** List item immediately before last item. */
+/**
+ * List item immediately before last item if length is at least 2, otherwise
+ * the last item.
+ */
 export const nextToLast = <T>(nodes: T[]): T =>
    nodes[nodes.length - (nodes.length > 1 ? 2 : 1)];
 

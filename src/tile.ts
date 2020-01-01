@@ -2,16 +2,19 @@ import 'whatwg-fetch';
 import fs from 'fs';
 import path from 'path';
 import { measure } from '@toba/map';
-import { ensureAllExist, Encoding } from '@toba/node-tools';
-import { Point } from './types';
+import { ensureAllExist, writeFile } from '@toba/node-tools';
+import { Point, BoundingBox, Tile } from './types';
+import { parseOsmXML } from './parse';
 
+const ext = 'osm';
 const defaultZoom = 15;
+/** Cache names of downloaded tile data to short-circuit file system checks */
 const downloadedTiles = new Set<string>();
 let dataPath = path.join(__dirname, '..', 'temp');
 /** Whether to fetch tile data if not cached */
 let fetchIfMissing = true;
 
-let cacheMilliseconds = 30;
+let cacheSeconds = 30;
 
 const tilesForZoom = (z: number) => 2 ** z;
 const secant = (x: number) => 1.0 / Math.cos(x);
@@ -28,15 +31,15 @@ function pointToPosition(p: Point) {
    return [x, y];
 }
 
-function tilePosition(p: Point, zoom: number = defaultZoom) {
+export function tilePosition(p: Point, zoom: number = defaultZoom) {
    const n = tilesForZoom(zoom);
    const [x, y] = pointToPosition(p);
    return [Math.trunc(n * x), Math.trunc(n * y)];
 }
 
 /**
- * Time since file was last modified in milliseconds or negativie infinity if
- * the file doesn't exist.
+ * Time since file was last modified as millisecond timestamp or negative
+ * infinity if the file doesn't exist.
  */
 const fileAge = (path: string): Promise<number> =>
    new Promise<number>(resolve =>
@@ -52,11 +55,11 @@ const fileAge = (path: string): Promise<number> =>
  *
  * @see https://wiki.openstreetmap.org/wiki/API_v0.6#Retrieving_map_data_by_bounding_box:_GET_.2Fapi.2F0.6.2Fmap
  */
-function tileBoundary(
+export function tileBoundary(
    x: number,
    y: number,
    zoom: number = defaultZoom
-): [number, number, number, number] {
+): BoundingBox {
    const n = tilesForZoom(zoom);
    const top = mercToLat(Math.PI * (1 - 2 * (y * (1 / n))));
    const bottom = mercToLat(Math.PI * (1 - 2 * ((y + 1) * (1 / n))));
@@ -68,49 +71,77 @@ function tileBoundary(
 
 /**
  * Ensure tile data have been cached.
+ * @param onLoad Optional method to call when tile data are loaded
  */
-async function ensureTiles(lat: number, lon: number) {
+async function ensureTiles(
+   lat: number,
+   lon: number,
+   onLoad?: (t: Tile) => void
+): Promise<boolean> {
    if (!fetchIfMissing) {
-      return;
+      return true;
    }
    const [x, y] = tilePosition([lat, lon]);
-   const tileID = `${x},${y}`;
+   const name = `${x},${y}`;
 
-   if (downloadedTiles.has(tileID)) {
-      return;
+   if (downloadedTiles.has(name)) {
+      return true;
    }
 
-   downloadedTiles.add(tileID);
+   downloadedTiles.add(name);
 
-   const folder = path.join(dataPath, 'tiles', defaultZoom.toString());
-   const file = path.join(folder, `${tileID}.osm`);
-   const [left, bottom, right, top] = tileBoundary(x, y);
-   debugger;
+   const folder = path.join(dataPath, 'tiles');
+   const filePath = path.join(folder, `${name}.${ext}`);
+
    ensureAllExist(folder);
 
-   const age = new Date().getTime() - (await fileAge(file));
+   /** Milliseconds since file was modified */
+   const age = new Date().getTime() - (await fileAge(filePath));
 
-   if (age > cacheMilliseconds) {
-      const res = await fetch(
-         `https://api.openstreetmap.org/api/0.6/map?bbox=${left},${bottom},${right},${top}`
-      );
-      const text = await res.text();
-      fs.writeFileSync(file, text, { encoding: Encoding.UTF8 });
-   }
+   return age > cacheSeconds * 1000
+      ? downloadInBoundary(folder, name, x, y, onLoad)
+      : true;
 }
 
 /**
  *
+ * @param folder Absolute path of directory where file should be written
+ * @param onLoad Optional method to call when tile data are loaded
+ * @returns Whether file could be downloaded
  * @see https://wiki.openstreetmap.org/wiki/API_v0.6#Retrieving_map_data_by_bounding_box:_GET_.2Fapi.2F0.6.2Fmap
  */
-function downloadInBoundary() {}
+async function downloadInBoundary(
+   folder: string,
+   fileName: string,
+   x: number,
+   y: number,
+   onLoad?: (t: Tile) => void
+): Promise<boolean> {
+   const [left, bottom, right, top] = tileBoundary(x, y);
+
+   try {
+      const res = await fetch(
+         `https://api.openstreetmap.org/api/0.6/map?bbox=${left},${bottom},${right},${top}`
+      );
+      const text = await res.text();
+
+      await writeFile(fileName, text, folder, ext);
+
+      if (onLoad !== undefined) {
+         onLoad(parseOsmXML(text));
+      }
+   } catch (e) {
+      // called methods should already have logged message
+      downloadedTiles.delete(name);
+      return false;
+   }
+   return true;
+}
 
 /**
  * OSM tile management singleton.
  */
 export const tiles = {
-   position: tilePosition,
-   boundary: tileBoundary,
    ensure: ensureTiles,
    /**
     * Set absolute path where tile data should be saved.
@@ -130,10 +161,20 @@ export const tiles = {
     * Seconds to use downloaded tile data before replacing it.
     */
    set cacheSeconds(s: number) {
-      cacheMilliseconds = s * 1000;
+      cacheSeconds = s;
    },
 
+   /**
+    * Minutes to use downloaded tile data before replacing it.
+    */
    set cacheMinutes(m: number) {
       this.cacheSeconds = m * 60;
+   },
+
+   /**
+    * Hours to use downloaded tile data before replacing it.
+    */
+   set cacheHours(h: number) {
+      this.cacheMinutes = h * 60;
    }
 };
