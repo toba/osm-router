@@ -2,34 +2,33 @@ import 'whatwg-fetch';
 import fs from 'fs';
 import path from 'path';
 import { measure } from '@toba/map';
-import { readFile, ensureAllExist, Encoding } from '@toba/node-tools';
+import { ensureAllExist, Encoding } from '@toba/node-tools';
+import { Point } from './types';
 
 const defaultZoom = 15;
-const tileCache = new Map<string, boolean>();
+const downloadedTiles = new Set<string>();
 let dataPath = path.join(__dirname, '..', 'temp');
 /** Whether to fetch tile data if not cached */
 let fetchIfMissing = true;
 
 let cacheMilliseconds = 30;
 
-/**
- * Calculate OSM tile coordinate for location and zoom.
- * @param lat Degrees latitude
- * @param lon Degrees longitude
- * @returns radian [longitude, latitude, zoom]
- */
-function whichTile(
-   lat: number,
-   lon: number,
-   zoom: number = defaultZoom
-): [number, number, number] {
-   /** Latitude in radians */
-   const radLat = measure.toRadians(lat);
-   const n = 2 ** zoom;
-   const x = n * ((lon + 180) / 360);
-   const y = n * (1 - Math.log(Math.tan(radLat) + 1 / Math.cos(radLat)));
+const tilesForZoom = (z: number) => 2 ** z;
+const secant = (x: number) => 1.0 / Math.cos(x);
+const mercToLat = (x: number) => measure.toDegrees(Math.atan(Math.sinh(x)));
 
-   return [Math.trunc(x), Math.trunc(y), zoom];
+function pointToPosition(p: Point) {
+   const [lat, lon] = p;
+   const radLat = measure.toRadians(lat);
+   const x = (lon + 180) / 360;
+   const y = (1 - Math.log(Math.tan(radLat) + secant(radLat)) / Math.PI) / 2;
+   return [x, y];
+}
+
+function tilePosition(p: Point, zoom: number = defaultZoom) {
+   const n = tilesForZoom(zoom);
+   const [x, y] = pointToPosition(p);
+   return [Math.trunc(n * x), Math.trunc(n * y)];
 }
 
 function fileAge(path: string): number {
@@ -46,15 +45,16 @@ function fileAge(path: string): number {
  * Calculate left, bottom, right and top for tile.
  * @param x Tile X coordinate
  * @param y Tile Y coordinate
+ *
+ * @see https://wiki.openstreetmap.org/wiki/API_v0.6#Retrieving_map_data_by_bounding_box:_GET_.2Fapi.2F0.6.2Fmap
  */
 function tileBoundary(
    x: number,
    y: number,
    zoom: number = defaultZoom
 ): [number, number, number, number] {
-   const n = 2 ** zoom;
-   const mercToLat = (x: number) => measure.toDegrees(Math.atan(Math.sinh(x)));
-   const top = mercToLat(Math.PI * (1 - 2 * ((y * 1) / n)));
+   const n = tilesForZoom(zoom);
+   const top = mercToLat(Math.PI * (1 - 2 * (y * (1 / n))));
    const bottom = mercToLat(Math.PI * (1 - 2 * ((y + 1) * (1 / n))));
    const left = x * (360 / n) - 180;
    const right = left + 360 / n;
@@ -69,14 +69,14 @@ async function ensureTiles(lat: number, lon: number) {
    if (!fetchIfMissing) {
       return;
    }
-   const [x, y] = whichTile(lat, lon);
+   const [x, y] = tilePosition([lat, lon]);
    const tileID = `${x},${y}`;
 
-   if (tileCache.has(tileID)) {
+   if (downloadedTiles.has(tileID)) {
       return;
    }
 
-   tileCache.set(tileID, true);
+   downloadedTiles.add(tileID);
 
    const folder = path.join(dataPath, 'tiles', defaultZoom.toString());
    const file = path.join(folder, `${tileID}.osm`);
@@ -96,10 +96,16 @@ async function ensureTiles(lat: number, lon: number) {
 }
 
 /**
+ *
+ * @see https://wiki.openstreetmap.org/wiki/API_v0.6#Retrieving_map_data_by_bounding_box:_GET_.2Fapi.2F0.6.2Fmap
+ */
+function downloadInBoundary() {}
+
+/**
  * OSM tile management singleton.
  */
 export const tiles = {
-   which: whichTile,
+   position: tilePosition,
    boundary: tileBoundary,
    ensure: ensureTiles,
    /**

@@ -2,9 +2,9 @@ import '@toba/test';
 import path from 'path';
 import { readFileText } from '@toba/node-tools';
 import { parseOsmXML, addTags } from './parse';
-import { Tile, WayType, Tag, OsmElement } from './types';
+import { Tile, WayType, Tag, OsmElement, Point } from './types';
 
-const osmFile = path.join(__dirname, '__mocks__', 'data.osm');
+const osmFile = path.join(__dirname, '__mocks__', 'sample.osm');
 
 it('converts OSM XML to an object', async () => {
    const osmText: string = await readFileText(osmFile);
