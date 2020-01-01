@@ -5,7 +5,7 @@ import {
    Way,
    Role,
    Relation,
-   OsmItem,
+   OsmElement,
    Tile,
    WayType,
    ItemType,
@@ -68,7 +68,7 @@ function point(this: Node): [number, number] {
  * Convert tags to plain object and add to item.
  * @param synonyms Optionally replace key value with a synonym
  */
-export const addTags = <T extends OsmItem>(
+export const addTags = <T extends OsmElement>(
    tags: TagXML[],
    item: Partial<T>,
    synonyms: { [alt: string]: string } = {}

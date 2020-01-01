@@ -1,11 +1,5 @@
 /**
- * A way is an ordered list of nodes which normally also has at least one tag or
- * is included within a `Relation`. A way can have between 2 and 2,000 nodes,
- * although it's possible that faulty ways with zero or a single node exist. A
- * way can be open or closed. A closed way is one whose last node on the way is
- * also the first on that way. A closed way may be interpreted either as a
- * closed polyline, or an area, or both.
- * @see https://wiki.openstreetmap.org/wiki/Way
+ * Kind of road, street, path or rail.
  * @see https://wiki.openstreetmap.org/wiki/Key:highway
  */
 export const enum WayType {
@@ -101,7 +95,11 @@ export const enum Tag {
    /** Restriction exceptions */
    Exception = 'except',
    Type = 'type',
-   /** Indicates disallowed transportation types */
+   /**
+    * Indicates access generally disallowed or disallowed for a specific mode
+    * of transportation.
+    * @see https://wiki.openstreetmap.org/wiki/Relation:restriction
+    */
    Restriction = 'restriction',
    Bicycle = 'bicycle',
    Bus = 'bus',
@@ -160,20 +158,37 @@ export const enum Access {
    Private = 'private'
 }
 
+/**
+ * @see https://wiki.openstreetmap.org/wiki/Relation:restriction
+ */
+export const enum RestrictionType {
+   NoRightTurn = 'no_right_turn',
+   NoLeftTurn = 'no_left_turn',
+   NoUturn = 'no_u_turn',
+   NoStraight = 'no_straight_on',
+   OnlyRightTurn = 'only_right_turn',
+   OnlyLeftTurn = 'only_left_turn',
+   OnlyStright = 'only_straight_on',
+   NoEntry = 'no_entry',
+   NoExit = 'no_exit'
+}
+
+/**
+ * Permitted access types and road or rail type weighting that together define
+ * routing preferences.
+ */
 export interface RouteConfig {
    name: string;
-   /** Weights keyed to road types — larger numbers are preferred */
+   /**
+    * Weights keyed to road types — larger numbers indicate stronger
+    * preference
+    */
    weights: { [key: string]: number };
-   /** Usable access types for a mode of travel */
+   /** Usable access types */
    canUse: Tag[];
 }
 
 export type RouteMode = { [key: string]: RouteConfig };
-
-// export const enum Action {
-//    Modify = 'modify',
-//    Delete = 'delete'
-// }
 
 /**
  * Relation member roles.
@@ -191,36 +206,120 @@ export type Point = [number, number];
 export type TagMap = { [key: string]: string | undefined };
 
 /**
+ * Properties common to OSM nodes, ways and relations.
  * @see https://wiki.openstreetmap.org/wiki/API_v0.6/XSD
+ * @see https://wiki.openstreetmap.org/wiki/Elements
  */
-export interface OsmItem {
+export interface OsmElement {
+   /**
+    * Used for identifying the element. Element types have their own ID space,
+    * so there could be a node with id=100 and a way with id=100, which are
+    * unlikely to be related or geographically near to each other.
+    *
+    * Positive (>0) values are used for all existing elements (and will remain
+    * assigned when they are modified or deleted); negative values (<0) are
+    * reserved (their scope limited to the current changeset and never stored
+    * in the database) and only used when sending data to the OSM database for
+    * identifying new objects to create and reference them in other created or
+    * modified objects (the server will replace these temporary identifiers sent
+    * by the editing application, by assigning an actual positive identifier for
+    * each created object, and will return a mapping from the negative
+    * identifiers used to their assigned positive identifiers).
+    */
    id: number;
    //visible?: boolean;
+   /**
+    * Time of the last modification
+    * @example "2016-12-31T23:59:59.999Z"
+    */
    timestamp?: number;
+   /**
+    * All types of data element (nodes, ways and relations), as well as
+    * changesets, can have tags. Tags describe the meaning of the particular
+    * element to which they are attached.
+    *
+    * A tag consists of two free format text fields; a `key` and a `value`. Each
+    * of these are Unicode strings of up to 255 characters. For example,
+    * `highway=residential` defines the way as a road whose main function is to
+    * give access to people's homes. An element cannot have 2 tags with the same
+    * `key`, the key's must be unique. For example, you cannot have an element
+    * tagged both `amenity=restaurant` and `amenity=bar`.
+    *
+    * There is no fixed dictionary of tags, but there are many conventions
+    * documented on this wiki (starting with the Map Features page). Tag usage
+    * can be measured with the Taginfo application. If there is more than one
+    * way to tag a given feature, it's probably best to use the most common
+    * approach.
+    *
+    * Not all elements have tags. Nodes are often untagged if they are part of
+    * ways. Both ways and nodes may be untagged if they are members of a
+    * relation.
+    *
+    * @see https://wiki.openstreetmap.org/wiki/Tags
+    */
    tags?: TagMap;
 }
 
 /**
- * Single point on the map.
+ * A node is one of the core elements in the OpenStreetMap data model. It
+ * consists of a single point in space defined by its latitude, longitude and
+ * node id.
+ *
+ * A third, optional dimension (altitude) can also be included: `key:ele`
+ * (abrev. for "elevation"). A node can also be defined as part of a particular
+ * `layer=*` or `level=*`, where distinct features pass over or under one
+ * another; say, at a bridge.
+ *
+ * @see https://wiki.openstreetmap.org/wiki/Node
  */
-export interface Node extends OsmItem {
+export interface Node extends OsmElement {
+   /**
+    * Latitude coordinate in degrees (North of equator is positive) using the
+    * standard WGS84 projection
+    */
    lat: number;
+   /**
+    * Longitude coordinate in degrees (East of Greenwich is positive) using the
+    * standard WGS84 projection. Note that the geographic poles will be exactly
+    * at latitude ±90 degrees but in that case the longitude will be set to an
+    * arbitrary value within this range.
+    */
    lon: number;
+   /** Altitude or elevation */
+   ele?: number;
    open?: boolean;
    date?: number;
    point(): [number, number];
 }
 
-export interface Way extends OsmItem {
+/**
+ * Collection of nodes representing a way of travel.
+ *
+ * A way is an ordered list of nodes which normally also has at least one tag or
+ * is included within a `relation`. A way can have between 2 and 2,000 nodes,
+ * although it's possible that faulty ways with zero or a single node exist. A
+ * way can be open or closed. A closed way is one whose last node on the way is
+ * also the first on that way. A closed way may be interpreted either as a
+ * closed polyline, or an area, or both.
+ *
+ * @see https://wiki.openstreetmap.org/wiki/Way
+ */
+export interface Way extends OsmElement {
    nodes: Node[];
 }
 
 export interface RelationMember {
    nodes: Node[];
+   /** @see https://wiki.openstreetmap.org/wiki/Relation#Roles */
    role?: Role;
 }
 
-export interface Relation extends OsmItem {
+/**
+ * Restrictions and boundaries defined among a collection of nodes.
+ * @see https://wiki.openstreetmap.org/wiki/Relation
+ * @see https://wiki.openstreetmap.org/wiki/Relation:restriction
+ */
+export interface Relation extends OsmElement {
    members: RelationMember[];
    /**
     * Tags applied to relation. XPath OSM parsing only allows relations that
@@ -237,8 +336,17 @@ export interface Tile {
    relations: Relation[];
 }
 
+/**
+ * Result of routing request.
+ */
 export const enum Status {
+   /** Start and end nodes are not connected */
    NoRoute,
+   /** Found series of nodes connecting start to end */
    Success,
+   /**
+    * Maximum tries exceeded searching for connection between start and end
+    * nodes
+    */
    GaveUp
 }

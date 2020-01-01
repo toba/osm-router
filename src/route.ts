@@ -1,7 +1,7 @@
 import { measure } from '@toba/map';
 import { is, forEach } from '@toba/node-tools';
 import { RouteConfig, TravelMode, Node, Tile, Point, Status } from './types';
-import { whichTile } from './tile';
+import { tiles } from './tile';
 import { preferences } from './config';
 import { Graph } from './graph';
 import { Restrictions } from './restriction';
@@ -15,8 +15,7 @@ export class Route {
    graph: Graph;
    rules: Restrictions;
    nodes: Map<number, Node>;
-   /** Cached tiles */
-   tiles: Map<string, boolean>;
+
    travelMode: string;
    config: RouteConfig;
    /** Whether to download tile data as needed */
@@ -27,7 +26,6 @@ export class Route {
       tile?: Tile,
       expireData = 30
    ) {
-      this.tiles = new Map();
       this.nodes = new Map();
 
       if (is.object<RouteConfig>(configOrMode)) {
@@ -43,30 +41,10 @@ export class Route {
       this.rules = new Restrictions(this.config, this.travelMode);
 
       if (tile !== undefined) {
-         this.loadAsNeeded = false;
+         // if tile data was given then disable automatic fetching
+         tiles.fetchIfMissing = false;
          this.addTile(tile);
       }
-   }
-
-   /**
-    * Ensure tiles are available for routing.
-    */
-   ensureTiles(lat: number, lon: number) {
-      if (!this.loadAsNeeded) {
-         return;
-      }
-      const [x, y] = whichTile(lat, lon);
-      const tileID = `${x},${y}`;
-
-      if (this.tiles.has(tileID)) {
-         return;
-      }
-      throw new Error(`Not implemented for tile ${tileID}`);
-
-      // this.tiles.set(tileID, true);
-
-      // const [left, bottom, right, top] = tileBoundary(x, y);
-      // const url = `https://api.openstreetmap.org/api/0.6/map?bbox=${left},${bottom},${right},${top}`;
    }
 
    addTile(tile: Tile) {
@@ -84,7 +62,7 @@ export class Route {
     * Find nearest accessible node to begin the route.
     */
    nearestNode(lat: number, lon: number): number | null {
-      this.ensureTiles(lat, lon);
+      tiles.ensure(lat, lon, this.loadAsNeeded);
       let foundDistance = Number.MAX_VALUE;
       let foundNode: number | null = null;
 
@@ -105,15 +83,19 @@ export class Route {
     * @param startNode Node ID
     * @param endNode Node ID
     */
-   execute(startNode: number, endNode: number): [Status, number[]?] {
+   async execute(
+      startNode: number,
+      endNode: number
+   ): Promise<[Status, number[]?]> {
       if (this.plan === undefined) {
          this.plan = new Plan(this.nodes, this.graph, this.rules);
       }
+      const valid = await this.plan.prepare(startNode, endNode);
 
-      if (!this.plan.prepare(startNode, endNode)) {
+      if (!valid) {
          return [Status.NoRoute, []];
       }
 
-      return this.plan.find(endNode, 100000);
+      return this.plan.find(100000);
    }
 }

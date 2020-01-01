@@ -2,9 +2,13 @@ import { intersects, forEach } from '@toba/node-tools';
 import { Relation, Tag, TravelMode, RouteConfig, TagMap } from './types';
 import { Sequence } from './sequence';
 
-// https://www.measurethat.net/Benchmarks/Show/4797/1/js-regex-vs-startswith-vs-indexof
 const forbidPrefix = /^no_/;
 const requirePrefix = /^only_/;
+/**
+ * If the first word is "no_", then no routing is possible from the "from" to
+ * the "to" member. If it is "only_", then the only routing originating from the
+ * "from" member leads to the "to" member.
+ */
 const rulePrefix = /^(no|only)_/;
 const noAccess = /^(no|private)$/;
 
@@ -40,6 +44,8 @@ function addRule<T>(
 
 /**
  * Required or forbidden node sequences for mode of transportation.
+ *
+ * @see https://wiki.openstreetmap.org/wiki/Relation:restriction
  */
 export class Restrictions {
    /** Sequence of required node IDs keyed to node list patterns */
@@ -91,6 +97,9 @@ export class Restrictions {
    /**
     * Retrieve restriction type from relation or `null` if there are no
     * applicable restrictions.
+    *
+    * Use `RegEx` to compare sequences when possible because it's faster.
+    * @see https://www.measurethat.net/Benchmarks/Show/4797/1/js-regex-vs-startswith-vs-indexof
     */
    private getRestrictionType(r: Relation): string | null {
       const exceptions = r.tags[Tag.Exception]?.split(';') ?? [];
@@ -100,12 +109,12 @@ export class Restrictions {
          return null;
       }
 
-      const specificRestriction = Tag.Restriction + ':' + this.travelMode;
+      const travelModeRestriction = Tag.Restriction + ':' + this.travelMode;
 
       if (
          this.travelMode == TravelMode.Walk &&
-         r.tags[Tag.Type] != specificRestriction &&
-         !(specificRestriction in r.tags)
+         r.tags[Tag.Type] != travelModeRestriction &&
+         !(travelModeRestriction in r.tags)
       ) {
          // ignore walking restrictions if not explicit
          return null;
@@ -115,7 +124,7 @@ export class Restrictions {
        * General restriction or restriction on specific mode of transportation
        */
       const restrictionType =
-         r.tags[specificRestriction] ?? r.tags[Tag.Restriction];
+         r.tags[travelModeRestriction] ?? r.tags[Tag.Restriction];
 
       if (restrictionType === undefined || !rulePrefix.test(restrictionType)) {
          // missing or inapplicable restriction type
@@ -140,9 +149,9 @@ export class Restrictions {
    }
 
    /**
-    * Whether node sequence is forbidden.
+    * Whether node sequence is forbidden based on OSM `no_*` relations.
     */
-   isForbidden(nodes: number[]): boolean {
+   forbids(nodes: number[]): boolean {
       const list = nodes.join(',');
       let forbidden = false;
 
@@ -156,7 +165,8 @@ export class Restrictions {
    }
 
    /**
-    * Nodes that are mandatory after a given node sequence.
+    * Nodes that are mandatory after a given node sequence based on OSM `only_*`
+    * relations.
     */
    getRequired(nodes: number[]): number[] {
       const list = nodes.join(',');

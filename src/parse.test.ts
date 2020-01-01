@@ -2,7 +2,7 @@ import '@toba/test';
 import path from 'path';
 import { readFileText } from '@toba/node-tools';
 import { parseOsmXML, addTags } from './parse';
-import { Tile, WayType, Tag, OsmItem } from './types';
+import { Tile, WayType, Tag, OsmElement } from './types';
 
 const osmFile = path.join(__dirname, '__mocks__', 'data.osm');
 
@@ -33,7 +33,7 @@ it('converts OSM XML to an object', async () => {
 it('converts tags to plain object with synonym substitutions', () => {
    const tags: any[] = [];
    const out: any = {};
-   const item: OsmItem = { id: 2 };
+   const item: OsmElement = { id: 2 };
    const synonyms = { value2: 'fixed2' };
 
    for (let i = 1; i <= 5; i++) {

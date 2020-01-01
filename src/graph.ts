@@ -6,7 +6,7 @@ import { allowTravelMode } from './restriction';
 const reverse = /^(-1|reverse)$/;
 /** Pattern of values for forward one-way */
 const forward = /^(yes|true|one)$/;
-/** Pattern of values for one-way key */
+/** Pattern of values assigned to one-way tag */
 const hasValue = /^(yes|true|1|-1)$/;
 
 /**
@@ -122,22 +122,38 @@ export class Graph {
    /**
     * Add connection weight between `from` and `to` node.
     */
-   add(from: Node, to: Node, preference: number) {
-      if (!this.edges.has(from.id)) {
-         this.edges.set(from.id, new Map());
+   add(from: Node, to: Node, weight: number) {
+      let edge: Map<number, number> | undefined = this.edges.get(from.id);
+
+      if (edge === undefined) {
+         edge = new Map();
+         this.edges.set(from.id, edge);
       }
-      this.edges.get(from.id)!.set(to.id, preference);
+      edge.set(to.id, weight);
    }
 
    /**
     * Execute method for each `toNode` that `nodeID` connects to.
     */
-   each(nodeID: number, fn: (preference: number, toNode: number) => void) {
+   each(nodeID: number, fn: (weight: number, toNode: number) => void) {
       const nodes = this.edges.get(nodeID);
       if (nodes === undefined) {
          return;
       }
       nodes.forEach(fn);
+   }
+
+   /**
+    * Map node edges to an array using given function.
+    */
+   map<T>(nodeID: number, fn: (weight: number, toNode: number) => T): T[] {
+      const nodes = this.edges.get(nodeID);
+      if (nodes === undefined) {
+         return [];
+      }
+      const out: T[] = [];
+      nodes.forEach((weight, id) => out.push(fn(weight, id)));
+      return out;
    }
 
    /**
