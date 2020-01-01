@@ -37,7 +37,8 @@ function fileAge(path: string): number {
       const stats = fs.statSync(path);
       return stats.mtimeMs;
    } else {
-      return Number.POSITIVE_INFINITY;
+      // negative because value is subtracted from current timestamp
+      return Number.NEGATIVE_INFINITY;
    }
 }
 
@@ -80,7 +81,7 @@ async function ensureTiles(lat: number, lon: number) {
    const folder = path.join(dataPath, 'tiles', defaultZoom.toString());
    const file = path.join(folder, `${tileID}.osm`);
    const [left, bottom, right, top] = tileBoundary(x, y);
-
+   debugger;
    ensureAllExist(folder);
 
    const age = new Date().getTime() - fileAge(file);
