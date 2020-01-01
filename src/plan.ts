@@ -8,13 +8,13 @@ import { tiles } from './tile';
 
 /** An optional route plan. */
 export interface Option {
-   /** Node IDs */
+   /** Sequence of node IDs meant to connect with `endNode` */
    nodes: number[];
    /** Cost of connecting start and end nodes based on road type weighting */
    cost: number;
    heuristicCost: number;
    /**
-    * IDs of nodes that must be traversed in this plan, derived from `only_*`
+    * IDs of nodes that *must* be traversed in this plan, derived from `only_*`
     * OSM relations
     */
    required: number[];

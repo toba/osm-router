@@ -10,7 +10,7 @@ const forward = /^(yes|true|one)$/;
 const hasValue = /^(yes|true|1|-1)$/;
 
 /**
- * Preferred connections between nodes for mode of travel.
+ * Weighted connections between nodes for a given mode of travel.
  */
 export class Graph {
    /** Weights assigned to node-node connections based on `RouteConfig` */

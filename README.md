@@ -9,9 +9,12 @@
 
 # Toba OSM Router
 
+A TypeScript adaptation of [pyroutelib4](https://github.com/MKuranowski/pyroutelib3) (itself an update of [pyroutelib2](https://github.com/gaulinmp/pyroutelib2)).
+
 ## License
 
-Copyright &copy; 2019 Jason Abbott
+(boilerplate to be updated)
 
-This software is licensed under the MIT license. See the [LICENSE](./LICENSE) file
-accompanying this software for terms of use.
+Copyright &copy; 2020 Jason Abbott
+
+This software is licensed under the MIT license. See the [LICENSE](./LICENSE) file accompanying this software for terms of use.
