@@ -17,6 +17,9 @@ const tilesForZoom = (z: number) => 2 ** z;
 const secant = (x: number) => 1.0 / Math.cos(x);
 const mercToLat = (x: number) => measure.toDegrees(Math.atan(Math.sinh(x)));
 
+/**
+ * @see https://wiki.openstreetmap.org/wiki/Mercator#ActionScript_and_JavaScript
+ */
 function pointToPosition(p: Point) {
    const [lat, lon] = p;
    const radLat = measure.toRadians(lat);
@@ -31,15 +34,16 @@ function tilePosition(p: Point, zoom: number = defaultZoom) {
    return [Math.trunc(n * x), Math.trunc(n * y)];
 }
 
-function fileAge(path: string): number {
-   if (fs.existsSync(path)) {
-      const stats = fs.statSync(path);
-      return stats.mtimeMs;
-   } else {
-      // negative because value is subtracted from current timestamp
-      return Number.NEGATIVE_INFINITY;
-   }
-}
+/**
+ * Time since file was last modified in milliseconds or negativie infinity if
+ * the file doesn't exist.
+ */
+const fileAge = (path: string): Promise<number> =>
+   new Promise<number>(resolve =>
+      fs.stat(path, (err, stats) => {
+         resolve(err === null ? stats.mtimeMs : Number.NEGATIVE_INFINITY);
+      })
+   );
 
 /**
  * Calculate left, bottom, right and top for tile.
@@ -84,7 +88,7 @@ async function ensureTiles(lat: number, lon: number) {
    debugger;
    ensureAllExist(folder);
 
-   const age = new Date().getTime() - fileAge(file);
+   const age = new Date().getTime() - (await fileAge(file));
 
    if (age > cacheMilliseconds) {
       const res = await fetch(
