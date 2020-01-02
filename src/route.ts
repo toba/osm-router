@@ -6,7 +6,11 @@ import { preferences } from './config';
 import { Graph } from './graph';
 import { Restrictions } from './restriction';
 import { Plan } from './plan';
-import { parseOsmXML } from './parse';
+
+export interface RouteResult {
+   status: Status;
+   nodes?: number[];
+}
 
 /**
  * @see https://jakobmiksch.eu/post/openstreetmap_routing/
@@ -77,21 +81,32 @@ export class Route {
    }
 
    /**
+    * Find route between two sets of GPS coordinates.
+    */
+   async find(startPoint: Point, endPoint: Point): Promise<RouteResult> {
+      const [startNode, endNode] = await Promise.all([
+         this.nearestNode(startPoint[0], startPoint[1]),
+         this.nearestNode(endPoint[0], endPoint[1])
+      ]);
+
+      return startNode === null || endNode === null
+         ? { status: Status.NoRoute }
+         : this.execute(startNode, endNode);
+   }
+
+   /**
     * Find route between two known nodes.
     * @param startNode Node ID
     * @param endNode Node ID
     */
-   async execute(
-      startNode: number,
-      endNode: number
-   ): Promise<[Status, number[]?]> {
+   async execute(startNode: number, endNode: number): Promise<RouteResult> {
       if (this.plan === undefined) {
          this.plan = new Plan(this.nodes, this.graph, this.rules);
       }
       const valid = await this.plan.prepare(startNode, endNode);
 
       if (!valid) {
-         return [Status.NoRoute, []];
+         return { status: Status.NoRoute };
       }
 
       return this.plan.find(100000);

@@ -5,6 +5,7 @@ import { Graph } from './graph';
 import { Restrictions } from './restriction';
 import { nextToLast } from './sequence';
 import { tiles } from './tile';
+import { RouteResult } from './route';
 
 /** An optional route plan. */
 export interface Option {
@@ -100,13 +101,13 @@ export class Plan {
    /**
     * Find lowest cost option to reach end node within maximum iterations.
     */
-   async find(max: number): Promise<[Status, number[]?]> {
+   async find(max: number): Promise<RouteResult> {
       let count = 0;
 
       while (count < max) {
          if (this.length == 0) {
             // exhausted options without finding way to end
-            return [Status.NoRoute];
+            return { status: Status.NoRoute };
          }
          count++;
          this.closeNode = true;
@@ -120,7 +121,7 @@ export class Plan {
          }
 
          if (optionEnd == this.endNode) {
-            return [Status.Success, option.nodes];
+            return { status: Status.Success, nodes: option.nodes };
          }
 
          if (option.required.length > 0) {
@@ -156,7 +157,7 @@ export class Plan {
          }
       }
 
-      return [Status.GaveUp];
+      return { status: Status.GaveUp };
    }
 
    /**

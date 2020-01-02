@@ -184,7 +184,11 @@ export interface RouteConfig {
     * preference
     */
    weights: { [key: string]: number };
-   /** Usable access types */
+   /**
+    * Usable access types ordered by specificity. The first item should be most
+    * general and the last most specific so when iterated, later types can
+    * override earlier ones.
+    */
    canUse: Tag[];
 }
 

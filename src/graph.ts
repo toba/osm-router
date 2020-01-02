@@ -3,7 +3,7 @@ import { Node, Tag, Way, WayType, TravelMode, RouteConfig } from './types';
 import { allowTravelMode } from './restriction';
 
 /** Weight (or below) indicating way is not usable */
-const doNotUse = 0;
+const cannotUse = 0;
 /** Pattern of values for reverse one-way */
 const reverse = /^(-1|reverse)$/;
 /** Pattern of values for forward one-way */
@@ -42,11 +42,8 @@ export class Graph {
     */
    fromWay(way: Way): Node[] {
       let oneway = '';
-      /**
-       * Preference for an edge (node connection). Higher values are preferred.
-       * A weight of 0 makes the way inaccessible.
-       */
-      let weight = 0;
+      /** Weight for an edge (node connection) — higher values are preferred */
+      let weight: number = cannotUse;
 
       if (way.tags !== undefined) {
          const roadType = way.tags[Tag.RoadType];
@@ -75,17 +72,17 @@ export class Graph {
          }
 
          if (roadType !== undefined) {
-            weight = this.config.weights[roadType] ?? doNotUse;
+            weight = this.config.weights[roadType] ?? cannotUse;
          }
 
-         if (railType !== undefined && weight == doNotUse) {
+         if (railType !== undefined && weight == cannotUse) {
             // TODO: is this right? How can we arbitrarily switch to rail type?
             // see if there's another way
-            weight = this.config.weights[railType] ?? doNotUse;
+            weight = this.config.weights[railType] ?? cannotUse;
          }
 
          if (
-            weight <= doNotUse ||
+            weight <= cannotUse ||
             !allowTravelMode(way.tags, this.config.canUse)
          ) {
             return [];
@@ -124,7 +121,7 @@ export class Graph {
     * returned if the nodes aren't connected.
     */
    weight = (from: number, to: number): number =>
-      this.edges.get(from)?.get(to) ?? doNotUse;
+      this.edges.get(from)?.get(to) ?? cannotUse;
 
    /**
     * Add connection weight between `from` and `to` node.
