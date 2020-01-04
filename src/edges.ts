@@ -14,14 +14,14 @@ const hasValue = /^(yes|true|1|-1)$/;
 /**
  * Weighted connections between nodes for a given mode of travel.
  */
-export class Graph {
+export class Edges {
    /** Weights assigned to node-node connections based on `RouteConfig` */
-   edges: Map<number, Map<number, number>>;
+   items: Map<number, Map<number, number>>;
    travelMode: string;
    config: RouteConfig;
 
    constructor(config: RouteConfig, travelMode: string) {
-      this.edges = new Map();
+      this.items = new Map();
       this.travelMode = travelMode;
       this.config = config;
    }
@@ -38,7 +38,14 @@ export class Graph {
    }
 
    /**
-    * Create weighted edges from way and return routable nodes.
+    * Number of edges.
+    */
+   get length() {
+      return this.items.size;
+   }
+
+   /**
+    * Add weighted edges from way and return routable nodes.
     */
    fromWay(way: Way): Node[] {
       let oneway = '';
@@ -110,9 +117,9 @@ export class Graph {
     * node ID.
     */
    has(from: number, to?: number) {
-      const exists = this.edges.has(from);
+      const exists = this.items.has(from);
       return exists && to !== undefined
-         ? this.edges.get(from)!.has(to)
+         ? this.items.get(from)!.has(to)
          : exists;
    }
 
@@ -121,17 +128,17 @@ export class Graph {
     * returned if the nodes aren't connected.
     */
    weight = (from: number, to: number): number =>
-      this.edges.get(from)?.get(to) ?? cannotUse;
+      this.items.get(from)?.get(to) ?? cannotUse;
 
    /**
     * Add connection weight between `from` and `to` node.
     */
    add(from: Node, to: Node, weight: number) {
-      let edge: Map<number, number> | undefined = this.edges.get(from.id);
+      let edge: Map<number, number> | undefined = this.items.get(from.id);
 
       if (edge === undefined) {
          edge = new Map();
-         this.edges.set(from.id, edge);
+         this.items.set(from.id, edge);
       }
       edge.set(to.id, weight);
    }
@@ -140,7 +147,7 @@ export class Graph {
     * Execute method for each `toNode` that `nodeID` connects to.
     */
    each(nodeID: number, fn: (weight: number, toNode: number) => void) {
-      const nodes = this.edges.get(nodeID);
+      const nodes = this.items.get(nodeID);
       if (nodes === undefined) {
          return;
       }
@@ -152,7 +159,7 @@ export class Graph {
     * example, to map edges to route options.
     */
    map<T>(nodeID: number, fn: (weight: number, toNode: number) => T): T[] {
-      const nodes = this.edges.get(nodeID);
+      const nodes = this.items.get(nodeID);
       if (nodes === undefined) {
          return [];
       }
@@ -160,9 +167,4 @@ export class Graph {
       nodes.forEach((weight, id) => out.push(fn(weight, id)));
       return out;
    }
-
-   // /**
-   //  * All connections for `from` node.
-   //  */
-   // for = (from: Node) => this.edges.get(from.id);
 }

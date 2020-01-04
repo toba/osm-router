@@ -1,7 +1,7 @@
 import { measure } from '@toba/map';
 import { removeItem, forEach } from '@toba/tools';
 import { Node, Point, Status, Tile } from './types';
-import { Graph } from './graph';
+import { Edges } from './edges';
 import { Restrictions } from './restriction';
 import { nextToLast } from './sequence';
 import { tiles } from './tile';
@@ -22,19 +22,26 @@ export interface Option {
    endNode: number;
 }
 
+const emptyOption = (startNode: number): Option => ({
+   cost: 0,
+   heuristicCost: 0,
+   nodes: [startNode],
+   required: [],
+   endNode: 0
+});
+
 /**
  * Route planner.
  */
 export class Plan {
-   graph: Graph;
+   edges: Edges;
    rules: Restrictions;
    nodes: Map<number, Node>;
    /** Optional route plans sorted by cost */
    options: Option[];
-   /** Node IDs that have been processed and shouldn't be considered again */
-   closed: Set<number>;
+   /** Node IDs that have been used and shouldn't be considered again */
+   used: Set<number>;
 
-   closeNode = true;
    endNode: number;
    /** Latitude/longitude of target route node */
    endPoint: Point;
@@ -43,11 +50,11 @@ export class Plan {
 
    constructor(
       nodes: Map<number, Node>,
-      graph: Graph,
+      edges: Edges,
       rules: Restrictions,
       onLoad?: (t: Tile) => void
    ) {
-      this.graph = graph;
+      this.edges = edges;
       this.rules = rules;
       this.nodes = nodes;
       this.onLoad = onLoad;
@@ -65,31 +72,19 @@ export class Plan {
     * @returns Whether start and end points are valid
     */
    async prepare(startNode: number, endNode: number): Promise<boolean> {
-      this.graph.ensure(startNode);
+      this.edges.ensure(startNode);
 
       if (startNode == endNode) {
          return false;
       }
+      this.used = new Set([startNode]);
       this.options = [];
-      this.closed = new Set([startNode]);
-      this.closeNode = true;
       this.endNode = endNode;
       this.endPoint = this.nodes.get(endNode)!.point();
 
       return Promise.all(
-         this.graph.map(startNode, (weight, linkedNode) =>
-            this.add(
-               startNode,
-               linkedNode,
-               {
-                  cost: 0,
-                  heuristicCost: 0,
-                  nodes: [startNode],
-                  required: [],
-                  endNode: 0
-               },
-               weight
-            )
+         this.edges.map(startNode, (weight, linkedNode) =>
+            this.add(startNode, linkedNode, emptyOption(startNode), weight)
          )
       ).then(() => true);
    }
@@ -110,12 +105,14 @@ export class Plan {
             return { status: Status.NoRoute };
          }
          count++;
-         this.closeNode = true;
 
          const option = this.options.pop()!;
+         /** End node ID */
          const optionEnd = option.endNode;
+         /** Whether to flag node so it isn't considered again for this route */
+         let setUsed = true;
 
-         if (this.closed.has(optionEnd)) {
+         if (this.used.has(optionEnd)) {
             // node was already considered
             continue;
          }
@@ -126,25 +123,25 @@ export class Plan {
 
          if (option.required.length > 0) {
             // traverse mandatory turns
-            this.closeNode = false;
+            setUsed = false;
             /** Next required node */
             const tryNode = option.required.shift()!;
 
-            if (this.graph.has(tryNode) && this.graph.has(optionEnd, tryNode)) {
+            if (this.edges.has(tryNode) && this.edges.has(optionEnd, tryNode)) {
                // TODO: any way without loop await?
                // eslint-disable-next-line
                await this.add(
                   optionEnd,
                   tryNode,
                   option,
-                  this.graph.weight(optionEnd, tryNode)
+                  this.edges.weight(optionEnd, tryNode)
                );
             }
-         } else if (this.graph.has(optionEnd)) {
+         } else if (this.edges.has(optionEnd)) {
             // eslint-disable-next-line
             await Promise.all(
-               this.graph.map(optionEnd, async (weight, nextNode) => {
-                  if (!this.closed.has(nextNode)) {
+               this.edges.map(optionEnd, async (weight, nextNode) => {
+                  if (!this.used.has(nextNode)) {
                      // eslint-disable-next-line
                      return this.add(optionEnd, nextNode, option, weight);
                   }
@@ -152,8 +149,8 @@ export class Plan {
             );
          }
 
-         if (this.closeNode) {
-            this.closed.add(optionEnd);
+         if (setUsed) {
+            this.used.add(optionEnd);
          }
       }
 
@@ -167,9 +164,16 @@ export class Plan {
       nodes.findIndex(n => !this.nodes.has(n)) == -1;
 
    /**
-    * Add routing option.
+    * Add to route options one segment at-a-time.
+    * @param toNode End-of-segment node (not end of route)
+    * @returns Whether to flag node as used
     */
-   async add(fromNode: number, toNode: number, option: Option, weight = 1) {
+   async add(
+      fromNode: number,
+      toNode: number,
+      option: Option,
+      weight = 1
+   ): Promise<boolean> {
       if (
          weight == 0 ||
          !this.hasNodes(toNode, fromNode) ||
@@ -177,14 +181,13 @@ export class Plan {
       ) {
          // ignore non-traversible route (weight 0), missing nodes and
          // reversal at node (i.e. a->b->a)
-         return;
+         return true;
       }
 
       option.nodes.push(toNode);
 
       if (this.rules.forbids(option.nodes)) {
-         this.closeNode = false;
-         return;
+         return false;
       }
 
       const toPoint = this.nodes.get(toNode)!.point();
@@ -201,7 +204,7 @@ export class Plan {
          if (optionToEnd.cost < option.cost) {
             // if an option to reach the end exists and is a lower cost then the
             // option being considered then discard considered option
-            return;
+            return true;
          }
          // if the existing option to reach the end has a higher cost then
          // remove it and continue with the cheaper option
@@ -213,6 +216,8 @@ export class Plan {
 
       /** Nodes required after `fromNode` */
       let required: number[] = [];
+      /** Whether to flag node so it isn't considered again for this route */
+      let setUsed = true;
 
       if (option.required.length > 0) {
          required = option.required;
@@ -220,7 +225,7 @@ export class Plan {
          required = this.rules.getRequired(option.nodes);
 
          if (required.length > 0) {
-            this.closeNode = false;
+            setUsed = false;
          }
       }
 
@@ -237,6 +242,8 @@ export class Plan {
       if (!inserted) {
          this.options.push(option);
       }
+
+      return setUsed;
    }
 
    /**

@@ -3,7 +3,7 @@ import { is, forEach } from '@toba/node-tools';
 import { RouteConfig, TravelMode, Node, Tile, Point, Status } from './types';
 import { tiles } from './tile';
 import { preferences } from './config';
-import { Graph } from './graph';
+import { Edges } from './edges';
 import { Restrictions } from './restriction';
 import { Plan } from './plan';
 
@@ -17,7 +17,7 @@ export interface RouteResult {
  */
 export class Route {
    plan: Plan;
-   graph: Graph;
+   edges: Edges;
    rules: Restrictions;
    nodes: Map<number, Node>;
 
@@ -41,7 +41,7 @@ export class Route {
          this.config = preferences[this.travelMode];
       }
 
-      this.graph = new Graph(this.config, this.travelMode);
+      this.edges = new Edges(this.config, this.travelMode);
       this.rules = new Restrictions(this.config, this.travelMode);
 
       tiles.cacheHours = refreshDataAfterDays * 24;
@@ -50,7 +50,7 @@ export class Route {
    addTile(tile: Tile) {
       tile.ways.forEach(way => {
          // only cache nodes that are part of routable ways
-         const routableNodes = this.graph.fromWay(way);
+         const routableNodes = this.edges.fromWay(way);
          forEach(routableNodes, n => this.nodes.set(n.id, n));
       });
       forEach(tile.relations, r => this.rules.fromRelation(r));
@@ -101,7 +101,7 @@ export class Route {
     */
    async execute(startNode: number, endNode: number): Promise<RouteResult> {
       if (this.plan === undefined) {
-         this.plan = new Plan(this.nodes, this.graph, this.rules);
+         this.plan = new Plan(this.nodes, this.edges, this.rules);
       }
       const valid = await this.plan.prepare(startNode, endNode);
 
