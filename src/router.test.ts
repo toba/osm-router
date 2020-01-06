@@ -1,14 +1,14 @@
 import '@toba/test';
 import path from 'path';
 import { readFileText } from '@toba/node-tools';
-import { Route } from './route';
+import { Router } from './router';
 import { TravelMode, Point, Status } from './types';
 import { parseOsmXML } from './parse';
 import { tiles } from './tile';
 
 const osmFile = path.join(__dirname, '__mocks__', 'simple.osm');
-const carRoute = new Route(TravelMode.Car);
-const busRoute = new Route(TravelMode.Bus);
+const carRoute = new Router(TravelMode.Car);
+const busRoute = new Router(TravelMode.Bus);
 const p1 = [53.7926757, 21.5732485] as Point;
 const p2 = [53.799199, 21.5726826] as Point;
 

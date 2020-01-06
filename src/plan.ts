@@ -5,11 +5,10 @@ import { Edges } from './edges';
 import { Restrictions } from './restriction';
 import { nextToLast } from './sequence';
 import { tiles } from './tile';
-import { RouteResult } from './route';
+import { RouteResult } from './router';
 
-/** An optional route plan. */
-export interface Option {
-   /** Sequence of node IDs meant to connect with `endNode` */
+export interface Route {
+   /** Sequence of node IDs leading to `endNode` */
    nodes: number[];
    /** Cost of connecting start and end nodes based on road type weighting */
    cost: number;
@@ -19,10 +18,14 @@ export interface Option {
     * OSM relations
     */
    required: number[];
+   /**
+    * Route end node. This will not be the target end node until the route is
+    * complete.
+    */
    endNode: number;
 }
 
-const emptyOption = (startNode: number): Option => ({
+const emptyRoute = (startNode: number): Route => ({
    cost: 0,
    heuristicCost: 0,
    nodes: [startNode],
@@ -37,11 +40,11 @@ export class Plan {
    edges: Edges;
    rules: Restrictions;
    nodes: Map<number, Node>;
-   /** Optional route plans sorted by cost */
-   options: Option[];
+   /** Routes between start and end sorted by cost */
+   routes: Route[];
    /** Node IDs that have been used and shouldn't be considered again */
    used: Set<number>;
-
+   /** OSM node that valid routes must reach */
    endNode: number;
    /** Latitude/longitude of target route node */
    endPoint: Point;
@@ -61,13 +64,13 @@ export class Plan {
    }
 
    /**
-    * Validate start and end points then create initial route options for
-    * every node connected to the start point.
+    * Validate start and end points then create initial routes for every node
+    * connected to the start point.
     *
     * OSM data for linked nodes will be downloaded if not already cached.
     *
     * Start and end nodes should always exist after having been identified with
-    * `route.nearestNode()` since that method adds to the graph as needed.
+    * `router.nearestNode()` since that method adds to the graph as needed.
     *
     * @returns Whether start and end points are valid
     */
@@ -78,23 +81,26 @@ export class Plan {
          return false;
       }
       this.used = new Set([startNode]);
-      this.options = [];
+      this.routes = [];
       this.endNode = endNode;
       this.endPoint = this.nodes.get(endNode)!.point();
 
       return Promise.all(
          this.edges.map(startNode, (weight, linkedNode) =>
-            this.add(startNode, linkedNode, emptyOption(startNode), weight)
+            this.add(startNode, linkedNode, emptyRoute(startNode), weight)
          )
-      ).then(() => true);
+      )
+         .then(() => true)
+         .catch(() => false);
    }
 
    get length() {
-      return this.options.length;
+      return this.routes.length;
    }
 
    /**
     * Find lowest cost option to reach end node within maximum iterations.
+    * @param max Maximum number of route iterations to try before giving up
     */
    async find(max: number): Promise<RouteResult> {
       let count = 0;
@@ -106,51 +112,51 @@ export class Plan {
          }
          count++;
 
-         const option = this.options.pop()!;
+         const route = this.routes.pop()!;
          /** End node ID */
-         const optionEnd = option.endNode;
+         const routeEnd = route.endNode;
          /** Whether to flag node so it isn't considered again for this route */
          let setUsed = true;
 
-         if (this.used.has(optionEnd)) {
+         if (this.used.has(routeEnd)) {
             // node was already considered
             continue;
          }
 
-         if (optionEnd == this.endNode) {
-            return { status: Status.Success, nodes: option.nodes };
+         if (routeEnd == this.endNode) {
+            return { status: Status.Success, nodes: route.nodes };
          }
 
-         if (option.required.length > 0) {
+         if (route.required.length > 0) {
             // traverse mandatory turns
             setUsed = false;
             /** Next required node */
-            const tryNode = option.required.shift()!;
+            const tryNode = route.required.shift()!;
 
-            if (this.edges.has(tryNode) && this.edges.has(optionEnd, tryNode)) {
+            if (this.edges.has(tryNode) && this.edges.has(routeEnd, tryNode)) {
                // TODO: any way without loop await?
                // eslint-disable-next-line
                await this.add(
-                  optionEnd,
+                  routeEnd,
                   tryNode,
-                  option,
-                  this.edges.weight(optionEnd, tryNode)
+                  route,
+                  this.edges.weight(routeEnd, tryNode)
                );
             }
-         } else if (this.edges.has(optionEnd)) {
+         } else if (this.edges.has(routeEnd)) {
             // eslint-disable-next-line
             await Promise.all(
-               this.edges.map(optionEnd, async (weight, nextNode) => {
+               this.edges.map(routeEnd, async (weight, nextNode) => {
                   if (!this.used.has(nextNode)) {
                      // eslint-disable-next-line
-                     return this.add(optionEnd, nextNode, option, weight);
+                     return this.add(routeEnd, nextNode, route, weight);
                   }
                })
             );
          }
 
          if (setUsed) {
-            this.used.add(optionEnd);
+            this.used.add(routeEnd);
          }
       }
 
@@ -164,54 +170,55 @@ export class Plan {
       nodes.findIndex(n => !this.nodes.has(n)) == -1;
 
    /**
-    * Add to route options one segment at-a-time.
+    * Add route options one segment at-a-time.
     * @param toNode End-of-segment node (not end of route)
     * @returns Whether to flag node as used
     */
    async add(
       fromNode: number,
       toNode: number,
-      option: Option,
+      route: Route,
       weight = 1
    ): Promise<boolean> {
       if (
          weight == 0 ||
          !this.hasNodes(toNode, fromNode) ||
-         nextToLast(option.nodes) == toNode
+         nextToLast(route.nodes) == toNode
       ) {
          // ignore non-traversible route (weight 0), missing nodes and
          // reversal at node (i.e. a->b->a)
          return true;
       }
 
-      option.nodes.push(toNode);
+      route.nodes.push(toNode);
 
-      if (this.rules.forbids(option.nodes)) {
+      if (this.rules.forbids(route.nodes)) {
          return false;
       }
 
       const toPoint = this.nodes.get(toNode)!.point();
       const fromPoint = this.nodes.get(fromNode)!.point();
 
-      option.cost += measure.distanceLatLon(fromPoint, toPoint) / weight;
-      option.heuristicCost =
-         option.cost + measure.distanceLatLon(toPoint, this.endPoint);
+      route.endNode = toNode;
+      route.cost += measure.distanceLatLon(fromPoint, toPoint) / weight;
+      route.heuristicCost =
+         route.cost + measure.distanceLatLon(toPoint, this.endPoint);
 
-      // check if an option to reach the end point already exists
-      const optionToEnd = this.options.find(p => p.endNode == toNode);
+      /** Existing route that already connects with `toNode` */
+      const existingRoute = this.routes.find(p => p.endNode == toNode);
 
-      if (optionToEnd !== undefined) {
-         if (optionToEnd.cost < option.cost) {
-            // if an option to reach the end exists and is a lower cost then the
-            // option being considered then discard considered option
+      if (existingRoute !== undefined) {
+         if (existingRoute.cost < route.cost) {
+            // if a cheaper route already exists then do not create this route
             return true;
          }
-         // if the existing option to reach the end has a higher cost then
-         // remove it and continue with the cheaper option
-         this.remove(optionToEnd);
+         // if existing route is more expensive then remove it and continue
+         // creating new route
+         this.remove(existingRoute);
       }
 
       // ensure data exist for next node
+      // TODO: handle false response?
       await tiles.ensure(toPoint[0], toPoint[1], this.onLoad);
 
       /** Nodes required after `fromNode` */
@@ -219,10 +226,10 @@ export class Plan {
       /** Whether to flag node so it isn't considered again for this route */
       let setUsed = true;
 
-      if (option.required.length > 0) {
-         required = option.required;
+      if (route.required.length > 0) {
+         required = route.required;
       } else {
-         required = this.rules.getRequired(option.nodes);
+         required = this.rules.getRequired(route.nodes);
 
          if (required.length > 0) {
             setUsed = false;
@@ -231,16 +238,16 @@ export class Plan {
 
       let inserted = false;
 
-      forEach(this.options, (o, i) => {
+      forEach(this.routes, (o, i) => {
          // insert option sorted by heuristic cost
-         if (!inserted && o.heuristicCost > option.heuristicCost) {
-            this.insert(i, option);
+         if (!inserted && o.heuristicCost > route.heuristicCost) {
+            this.insert(i, route);
             inserted = true;
          }
       });
 
       if (!inserted) {
-         this.options.push(option);
+         this.routes.push(route);
       }
 
       return setUsed;
@@ -249,11 +256,10 @@ export class Plan {
    /**
     * Remove routing option.
     */
-   remove = (item: Option) => removeItem(this.options, item);
+   remove = (item: Route) => removeItem(this.routes, item);
 
    /**
     * Insert routing option at `index` position.
     */
-   insert = (index: number, item: Option) =>
-      this.options.splice(index, 0, item);
+   insert = (index: number, item: Route) => this.routes.splice(index, 0, item);
 }

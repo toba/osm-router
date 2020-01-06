@@ -9,13 +9,14 @@ import { Plan } from './plan';
 
 export interface RouteResult {
    status: Status;
+   /** OSM node IDs */
    nodes?: number[];
 }
 
 /**
  * @see https://jakobmiksch.eu/post/openstreetmap_routing/
  */
-export class Route {
+export class Router {
    plan: Plan;
    edges: Edges;
    rules: Restrictions;

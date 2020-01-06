@@ -36,5 +36,5 @@ it('initializes plan', async () => {
    expect(await p.prepare(-102562, -102326)).toBe(true);
    expect(p.endPoint).toEqual([53.79920293412, 21.57283007562]);
    // way -102645 defines two directions from -102562
-   expect(p.options.length).toBe(2);
+   expect(p.routes.length).toBe(2);
 });
