@@ -48,6 +48,7 @@ const extendRoute = (r: Route, endNode: number): Route => {
 
 /**
  * Route planner.
+ * @see https://arxiv.org/ftp/arxiv/papers/1212/1212.6055.pdf
  */
 export class Plan {
    edges: Edges;
