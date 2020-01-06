@@ -33,6 +33,19 @@ const emptyRoute = (startNode: number): Route => ({
    endNode: 0
 });
 
+const extendRoute = (r: Route, endNode: number): Route => {
+   const nodes = r.nodes.slice();
+   nodes.push(endNode);
+
+   return {
+      cost: r.cost,
+      heuristicCost: r.heuristicCost,
+      nodes,
+      required: r.required.slice(),
+      endNode
+   };
+};
+
 /**
  * Route planner.
  */
@@ -177,29 +190,28 @@ export class Plan {
    async add(
       fromNode: number,
       toNode: number,
-      route: Route,
+      soFar: Route,
       weight = 1
    ): Promise<boolean> {
       if (
          weight == 0 ||
          !this.hasNodes(toNode, fromNode) ||
-         nextToLast(route.nodes) == toNode
+         nextToLast(soFar.nodes) == toNode
       ) {
          // ignore non-traversible route (weight 0), missing nodes and
          // reversal at node (i.e. a->b->a)
          return true;
       }
 
-      route.nodes.push(toNode);
+      const route = extendRoute(soFar, toNode);
 
-      if (this.rules.forbids(route.nodes)) {
+      if (this.rules.forbids(soFar.nodes)) {
          return false;
       }
 
       const toPoint = this.nodes.get(toNode)!.point();
       const fromPoint = this.nodes.get(fromNode)!.point();
 
-      route.endNode = toNode;
       route.cost += measure.distanceLatLon(fromPoint, toPoint) / weight;
       route.heuristicCost =
          route.cost + measure.distanceLatLon(toPoint, this.endPoint);
