@@ -9,7 +9,7 @@ import { Plan } from './plan';
 
 export interface RouteResult {
    status: Status;
-   /** OSM node IDs */
+   /** OSM node IDs traversed to connect start and end nodes */
    nodes?: number[];
 }
 
@@ -17,15 +17,12 @@ export interface RouteResult {
  * @see https://jakobmiksch.eu/post/openstreetmap_routing/
  */
 export class Router {
-   plan: Plan;
-   edges: Edges;
-   rules: Restrictions;
-   nodes: Map<number, Node>;
-
-   travelMode: string;
-   config: RouteConfig;
-   /** Whether to download tile data as needed */
-   loadAsNeeded: false;
+   private plan: Plan;
+   private edges: Edges;
+   private rules: Restrictions;
+   private nodes: Map<number, Node>;
+   private travelMode: string;
+   private config: RouteConfig;
 
    constructor(
       configOrMode: RouteConfig | TravelMode,
@@ -57,7 +54,7 @@ export class Router {
       forEach(tile.relations, r => this.rules.fromRelation(r));
    }
 
-   distance = (p1: Point, p2: Point) => measure.distanceLatLon(p1, p2);
+   private distance = (p1: Point, p2: Point) => measure.distanceLatLon(p1, p2);
 
    /**
     * Find nearest accessible node to begin the route.

@@ -52,18 +52,18 @@ const extendRoute = (r: Route, endNode: number): Route => {
  */
 export class Plan {
    edges: Edges;
-   rules: Restrictions;
-   nodes: Map<number, Node>;
+   private rules: Restrictions;
+   private nodes: Map<number, Node>;
    /** Routes between start and end sorted by cost */
-   routes: Route[];
+   private routes: Route[];
    /** Node IDs that have been used and shouldn't be considered again */
-   used: Set<number>;
+   private used: Set<number>;
    /** OSM node that valid routes must reach */
-   endNode: number;
+   private endNode: number;
    /** Latitude/longitude of target route node */
    endPoint: Point;
    /** Method to call when new tile data are loaded */
-   onLoad?: (t: Tile) => void;
+   private onLoad?: (t: Tile) => void;
 
    constructor(
       nodes: Map<number, Node>,
@@ -108,6 +108,7 @@ export class Plan {
          .catch(() => false);
    }
 
+   /** Number of route plans */
    get length() {
       return this.routes.length;
    }
@@ -126,8 +127,9 @@ export class Plan {
          }
          count++;
 
+         /** Current route being evaluated */
          const route = this.routes.pop()!;
-         /** End node ID */
+         /** Final node ID for current route */
          const routeEnd = route.endNode;
          /** Whether to flag node so it isn't considered again for this route */
          let setUsed = true;
@@ -138,7 +140,7 @@ export class Plan {
          }
 
          if (routeEnd == this.endNode) {
-            return { status: Status.Success, nodes: route.nodes };
+            return { status: Status.Success, nodes: route.nodes.slice() };
          }
 
          if (route.required.length > 0) {
@@ -149,7 +151,6 @@ export class Plan {
 
             if (this.edges.has(tryNode) && this.edges.has(routeEnd, tryNode)) {
                // TODO: any way without loop await?
-               // eslint-disable-next-line
                await this.add(
                   routeEnd,
                   tryNode,
@@ -158,11 +159,9 @@ export class Plan {
                );
             }
          } else if (this.edges.has(routeEnd)) {
-            // eslint-disable-next-line
             await Promise.all(
                this.edges.map(routeEnd, async (weight, nextNode) => {
                   if (!this.used.has(nextNode)) {
-                     // eslint-disable-next-line
                      return this.add(routeEnd, nextNode, route, weight);
                   }
                })
@@ -180,7 +179,7 @@ export class Plan {
    /**
     * Whether nodes with IDs have been cached.
     */
-   hasNodes = (...nodes: number[]): boolean =>
+   private hasNodes = (...nodes: number[]): boolean =>
       nodes.findIndex(n => !this.nodes.has(n)) == -1;
 
    /**
@@ -188,7 +187,7 @@ export class Plan {
     * @param toNode End-of-segment node (not end of route)
     * @returns Whether to flag node as used
     */
-   async add(
+   private async add(
       fromNode: number,
       toNode: number,
       soFar: Route,
@@ -231,8 +230,9 @@ export class Plan {
       }
 
       // ensure data exist for next node
-      // TODO: handle false response?
-      await tiles.ensure(toPoint[0], toPoint[1], this.onLoad);
+      if (!(await tiles.ensure(toPoint[0], toPoint[1], this.onLoad))) {
+         throw new Error(`Unable to load data for point ${toPoint}`);
+      }
 
       /** Nodes required after `fromNode` */
       let required: number[] = [];
@@ -249,6 +249,7 @@ export class Plan {
          }
       }
 
+      /** Whether route has been added within sorted list */
       let inserted = false;
 
       forEach(this.routes, (o, i) => {
@@ -269,10 +270,11 @@ export class Plan {
    /**
     * Remove routing option.
     */
-   remove = (item: Route) => removeItem(this.routes, item);
+   private remove = (item: Route) => removeItem(this.routes, item);
 
    /**
     * Insert routing option at `index` position.
     */
-   insert = (index: number, item: Route) => this.routes.splice(index, 0, item);
+   private insert = (index: number, item: Route) =>
+      this.routes.splice(index, 0, item);
 }

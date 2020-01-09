@@ -15,6 +15,7 @@ it('converts OSM XML to an object', async () => {
    expect(osm.relations.length).toBe(7);
 
    expect(osm.ways.has(-102631)).toBe(true);
+   expect(osm.ways.has(-102620)).toBe(true);
 
    const way = osm.ways.get(-102630);
 

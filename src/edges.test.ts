@@ -31,6 +31,7 @@ it('creates weighted edges for each node in a way', () => {
    new Map<number, number[]>([
       [14, [-102627]],
       [2, [-102626]],
+      [6, [-102620]],
       [16, [-102627, -102626]]
    ]).forEach((ways, count) => {
       const e = getEdges(TravelMode.Car, ...ways);
@@ -40,8 +41,8 @@ it('creates weighted edges for each node in a way', () => {
 
 it('creates one edge per connection', () => {
    const e = getEdges(TravelMode.Car, -102645);
-   const start = e.items.get(-102594);
-   const mid = e.items.get(-102562);
+   const start = e.get(-102594);
+   const mid = e.get(-102562);
 
    expect(mid).toBeDefined();
    expect(mid!.size).toBe(2);
@@ -53,21 +54,35 @@ it('creates one edge per connection', () => {
 });
 
 it('indicates if edge includes a node', () => {
-   const e = getEdges(TravelMode.Car, -102645);
+   const e = getEdges(TravelMode.Car, -102627, -102620, -102626);
 
    expect(e.has(-102400)).toBe(true);
    expect(e.has(-102400, -102402)).toBe(true);
    expect(e.has(12)).toBe(false);
    expect(e.has(12, 10)).toBe(false);
    expect(e.has(-102400, -1024)).toBe(false);
+   expect(e.has(-102350, -102348)).toBe(true);
+   expect(e.has(-102350, -102352)).toBe(true);
 });
 
 it('retrieves edge weight from route configuration', () => {
    const config = preferences[TravelMode.Car];
-   const e = getEdges(TravelMode.Car, -102627, -102626);
+   const e = getEdges(TravelMode.Car, -102627, -102626, -102620);
 
    expect(e.weight(-102400, -102402)).toBe(config.weights[WayType.Residential]);
    expect(e.weight(-102350, -102352)).toBe(config.weights[WayType.Primary]);
+   expect(e.weight(-102350, -102348)).toBe(config.weights[WayType.Primary]);
+
+   // expect two-way edges to have standard weight
+   new Map([
+      [WayType.Primary, [-102350, -102352]],
+      [WayType.Primary, [-102348, -102346]]
+   ]).forEach(([n1, n2], wayType) => {
+      const w = config.weights[wayType];
+      expect(w).toBeGreaterThan(0);
+      expect(e.weight(n1, n2)).toBe(w);
+      expect(e.weight(n2, n1)).toBe(w);
+   });
 });
 
 it('iterates all edges starting with a node', () => {
@@ -77,4 +92,22 @@ it('iterates all edges starting with a node', () => {
    expect(e.length).toBe(5);
    e.each(-102562, fn);
    expect(fn).toHaveBeenCalledTimes(2);
+});
+
+it('maps edges to an array', () => {
+   const config = preferences[TravelMode.Car];
+   const e = getEdges(TravelMode.Car, -102622, -102624);
+   const fn = jest.fn();
+
+   expect(e.length).toBe(6);
+   e.map(-102352, fn);
+   expect(fn).toHaveBeenCalledTimes(2);
+
+   let count = 1;
+   new Map([
+      [-102394, config.weights[WayType.Residential]],
+      [-102354, config.weights[WayType.Primary]]
+   ]).forEach((weight, node) => {
+      expect(fn).toHaveBeenNthCalledWith(count++, weight, node);
+   });
 });
