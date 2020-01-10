@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { measure } from '@toba/map';
 import { ensureAllExist, writeFile } from '@toba/node-tools';
-import { Point, BoundingBox, Tile } from './types';
+import { Point, BoundingBox, AreaData } from './types';
 import { parseOsmXML } from './parse';
 
 const ext = 'osm';
@@ -76,7 +76,7 @@ export function tileBoundary(
 async function ensureTiles(
    lat: number,
    lon: number,
-   onLoad?: (t: Tile) => void
+   onLoad?: (t: AreaData) => void
 ): Promise<boolean> {
    if (!fetchIfMissing) {
       return true;
@@ -115,7 +115,7 @@ async function downloadInBoundary(
    fileName: string,
    x: number,
    y: number,
-   onLoad?: (t: Tile) => void
+   onLoad?: (t: AreaData) => void
 ): Promise<boolean> {
    const [left, bottom, right, top] = tileBoundary(x, y);
 

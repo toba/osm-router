@@ -2,13 +2,13 @@ import '@toba/test';
 import path from 'path';
 import { readFileText } from '@toba/node-tools';
 import { parseOsmXML, addTags } from './parse';
-import { Tile, WayType, Tag, OsmElement } from './types';
+import { AreaData, WayType, Tag, OsmElement } from './types';
 
 const osmFile = path.join(__dirname, '__mocks__', 'simple.osm');
 
 it('converts OSM XML to an object', async () => {
    const osmText: string = await readFileText(osmFile);
-   const osm: Tile = parseOsmXML(osmText);
+   const osm: AreaData = parseOsmXML(osmText);
 
    expect(osm.nodes.size).toBe(189);
    expect(osm.ways.size).toBe(33);

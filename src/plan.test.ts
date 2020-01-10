@@ -5,12 +5,12 @@ import { Edges } from './edges';
 import { Plan } from './plan';
 import { parseOsmXML } from './parse';
 import { tiles } from './tile';
-import { Tile, TravelMode, Node } from './types';
+import { AreaData, TravelMode, Node } from './types';
 import { preferences } from './config';
 import { Restrictions } from './restriction';
 
 const osmFile = path.join(__dirname, '__mocks__', 'simple.osm');
-let tile: Tile;
+let tile: AreaData;
 
 function getPlan(t: TravelMode): Plan {
    const config = preferences[t];

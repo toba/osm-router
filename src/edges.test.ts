@@ -4,11 +4,11 @@ import { readFileText } from '@toba/node-tools';
 import { Edges } from './edges';
 import { parseOsmXML } from './parse';
 import { tiles } from './tile';
-import { Tile, TravelMode, WayType } from './types';
+import { AreaData, TravelMode, WayType } from './types';
 import { preferences } from './config';
 
 const osmFile = path.join(__dirname, '__mocks__', 'simple.osm');
-let tile: Tile;
+let tile: AreaData;
 
 function getEdges(t: TravelMode, ...ways: number[]): Edges {
    const e = new Edges(preferences[t], t);
@@ -96,18 +96,21 @@ it('iterates all edges starting with a node', () => {
 
 it('maps edges to an array', () => {
    const config = preferences[TravelMode.Car];
-   const e = getEdges(TravelMode.Car, -102622, -102624);
+   const e = getEdges(TravelMode.Car, -102622, -102624, -102626);
    const fn = jest.fn();
 
-   expect(e.length).toBe(6);
+   expect(e.length).toBe(7);
    e.map(-102352, fn);
-   expect(fn).toHaveBeenCalledTimes(2);
+   expect(fn).toHaveBeenCalledTimes(3);
 
    let count = 1;
    new Map([
       [-102394, config.weights[WayType.Residential]],
-      [-102354, config.weights[WayType.Primary]]
+      [-102354, config.weights[WayType.Primary]],
+      [-102350, config.weights[WayType.Primary]]
    ]).forEach((weight, node) => {
       expect(fn).toHaveBeenNthCalledWith(count++, weight, node);
    });
 });
+
+// node -102524 is part of way -102635 which is part of restriction -102649

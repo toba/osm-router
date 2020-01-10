@@ -1,6 +1,6 @@
 import { measure } from '@toba/map';
 import { removeItem, forEach } from '@toba/tools';
-import { Node, Point, Status, Tile } from './types';
+import { Node, Point, Status, AreaData } from './types';
 import { Edges } from './edges';
 import { Restrictions } from './restriction';
 import { nextToLast } from './sequence';
@@ -19,12 +19,15 @@ export interface Route {
     */
    required: number[];
    /**
-    * Route end node. This will not be the target end node until the route is
+    * Rinal route node. This will not be the target end node until the route is
     * complete.
     */
    endNode: number;
 }
 
+/**
+ * Create a new route with `0` or empty values.
+ */
 const emptyRoute = (startNode: number): Route => ({
    cost: 0,
    heuristicCost: 0,
@@ -33,6 +36,10 @@ const emptyRoute = (startNode: number): Route => ({
    endNode: 0
 });
 
+/**
+ * Copy an existing route and extend it to include a new end node. This updates
+ * node values but *not* costs.
+ */
 const extendRoute = (r: Route, endNode: number): Route => {
    const nodes = r.nodes.slice();
    nodes.push(endNode);
@@ -48,28 +55,33 @@ const extendRoute = (r: Route, endNode: number): Route => {
 
 /**
  * Route planner.
+ * @see https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm
  * @see https://arxiv.org/ftp/arxiv/papers/1212/1212.6055.pdf
  */
 export class Plan {
    edges: Edges;
    private rules: Restrictions;
+   /** All known OSM nodes keyed to their ID */
    private nodes: Map<number, Node>;
-   /** Routes between start and end sorted by cost */
+   /**
+    * Routes between start and end sorted by cost so `.pop()` always returns
+    * the lowest cost plan
+    */
    private routes: Route[];
-   /** Node IDs that have been used and shouldn't be considered again */
-   private used: Set<number>;
+   /** Node IDs with links that have all been evaluated */
+   private known: Set<number>;
    /** OSM node that valid routes must reach */
    private endNode: number;
    /** Latitude/longitude of target route node */
    endPoint: Point;
    /** Method to call when new tile data are loaded */
-   private onLoad?: (t: Tile) => void;
+   private onLoad?: (t: AreaData) => void;
 
    constructor(
       nodes: Map<number, Node>,
       edges: Edges,
       rules: Restrictions,
-      onLoad?: (t: Tile) => void
+      onLoad?: (t: AreaData) => void
    ) {
       this.edges = edges;
       this.rules = rules;
@@ -94,7 +106,7 @@ export class Plan {
       if (startNode == endNode) {
          return false;
       }
-      this.used = new Set([startNode]);
+      this.known = new Set([startNode]);
       this.routes = [];
       this.endNode = endNode;
       this.endPoint = this.nodes.get(endNode)!.point();
@@ -113,6 +125,18 @@ export class Plan {
       return this.routes.length;
    }
 
+   private async ensureData(p: Point) {
+      if (!(await tiles.ensure(p[0], p[1], this.onLoad))) {
+         throw new Error(`Unable to load data for point ${p}`);
+      }
+   }
+
+   /**
+    * Whether nodes with IDs have been cached.
+    */
+   private hasNodes = (...nodes: number[]): boolean =>
+      nodes.findIndex(n => !this.nodes.has(n)) == -1;
+
    /**
     * Find lowest cost option to reach end node within maximum iterations.
     * @param max Maximum number of route iterations to try before giving up
@@ -127,49 +151,53 @@ export class Plan {
          }
          count++;
 
-         /** Current route being evaluated */
+         /** Potential route to evaluate */
          const route = this.routes.pop()!;
-         /** Final node ID for current route */
-         const routeEnd = route.endNode;
-         /** Whether to flag node so it isn't considered again for this route */
-         let setUsed = true;
+         /** Final node ID of current route */
+         const toNode = route.endNode;
+         /** Whether all `toNode` connections have been evaluated */
+         let evaluated = true;
 
-         if (this.used.has(routeEnd)) {
-            // node was already considered
+         if (this.known.has(toNode)) {
+            // node was already explored
             continue;
          }
 
-         if (routeEnd == this.endNode) {
+         if (toNode == this.endNode) {
             return { status: Status.Success, nodes: route.nodes.slice() };
          }
 
          if (route.required.length > 0) {
             // traverse mandatory turns
-            setUsed = false;
+            evaluated = false;
             /** Next required node */
-            const tryNode = route.required.shift()!;
+            const requiredNode = route.required.shift()!;
 
-            if (this.edges.has(tryNode) && this.edges.has(routeEnd, tryNode)) {
-               // TODO: any way without loop await?
+            if (this.edges.has(toNode, requiredNode)) {
                await this.add(
-                  routeEnd,
-                  tryNode,
+                  toNode,
+                  requiredNode,
                   route,
-                  this.edges.weight(routeEnd, tryNode)
+                  this.edges.weight(toNode, requiredNode)
                );
             }
-         } else if (this.edges.has(routeEnd)) {
-            await Promise.all(
-               this.edges.map(routeEnd, async (weight, nextNode) => {
-                  if (!this.used.has(nextNode)) {
-                     return this.add(routeEnd, nextNode, route, weight);
-                  }
-               })
+         } else if (this.edges.has(toNode)) {
+            const allAdded = await Promise.all(
+               this.edges.map(toNode, async (weight, nextNode) =>
+                  this.known.has(nextNode)
+                     ? true
+                     : this.add(toNode, nextNode, route, weight)
+               )
             );
+            if (allAdded.includes(false)) {
+               // toNode considered fully evaluated unless one of its
+               // connections (edges) couldn't be explored
+               evaluated = false;
+            }
          }
 
-         if (setUsed) {
-            this.used.add(routeEnd);
+         if (evaluated) {
+            this.known.add(toNode);
          }
       }
 
@@ -177,15 +205,10 @@ export class Plan {
    }
 
    /**
-    * Whether nodes with IDs have been cached.
-    */
-   private hasNodes = (...nodes: number[]): boolean =>
-      nodes.findIndex(n => !this.nodes.has(n)) == -1;
-
-   /**
     * Add route options one segment at-a-time.
     * @param toNode End-of-segment node (not end of route)
-    * @returns Whether to flag node as used
+    * @returns Whether `toNode` was fully evaluated. This will be `false` if
+    * required or forbidden (i.e. one-ways) node sequences took precedence.
     */
    private async add(
       fromNode: number,
@@ -205,7 +228,7 @@ export class Plan {
 
       const route = extendRoute(soFar, toNode);
 
-      if (this.rules.forbids(soFar.nodes)) {
+      if (this.rules.forbids(route.nodes)) {
          return false;
       }
 
@@ -229,52 +252,36 @@ export class Plan {
          this.remove(existingRoute);
       }
 
-      // ensure data exist for next node
-      if (!(await tiles.ensure(toPoint[0], toPoint[1], this.onLoad))) {
-         throw new Error(`Unable to load data for point ${toPoint}`);
-      }
+      await this.ensureData(toPoint);
 
-      /** Nodes required after `fromNode` */
-      let required: number[] = [];
-      /** Whether to flag node so it isn't considered again for this route */
-      let setUsed = true;
+      /** Whether all `toNode` connections have been evaluated */
+      let evaluated = true;
 
-      if (route.required.length > 0) {
-         required = route.required;
-      } else {
-         required = this.rules.getRequired(route.nodes);
+      if (route.required.length == 0) {
+         const required = this.rules.getRequired(route.nodes);
 
          if (required.length > 0) {
-            setUsed = false;
+            route.required = required;
+            evaluated = false;
          }
       }
 
-      /** Whether route has been added within sorted list */
-      let inserted = false;
+      this.routes.push(route);
+      this.sort();
 
-      forEach(this.routes, (o, i) => {
-         // insert option sorted by heuristic cost
-         if (!inserted && o.heuristicCost > route.heuristicCost) {
-            this.insert(i, route);
-            inserted = true;
-         }
-      });
-
-      if (!inserted) {
-         this.routes.push(route);
-      }
-
-      return setUsed;
+      return evaluated;
    }
+
+   /**
+    * Sort route plans in order of cost.
+    */
+   private sort = () =>
+      this.routes.sort(
+         (r1: Route, r2: Route) => r2.heuristicCost - r1.heuristicCost
+      );
 
    /**
     * Remove routing option.
     */
    private remove = (item: Route) => removeItem(this.routes, item);
-
-   /**
-    * Insert routing option at `index` position.
-    */
-   private insert = (index: number, item: Route) =>
-      this.routes.splice(index, 0, item);
 }

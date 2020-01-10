@@ -45,6 +45,9 @@ function addRule<T>(
 /**
  * Required or forbidden node sequences for mode of transportation.
  *
+ * TODO: this is not currently handling forbidden or required turns since that
+ * would require parsing to understand relative directions like left and right
+ *
  * @see https://wiki.openstreetmap.org/wiki/Relation:restriction
  */
 export class Restrictions {
@@ -149,8 +152,8 @@ export class Restrictions {
    }
 
    /**
-    * Whether nodes contain a sequence that is forbidden based on OSM `no_*`
-    * relations.
+    * Whether node list contains a sequence that is forbidden based on OSM
+    * `no_*` relations.
     */
    forbids(nodes: number[]): boolean {
       const list = nodes.join(',');

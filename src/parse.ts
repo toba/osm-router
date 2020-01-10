@@ -6,7 +6,7 @@ import {
    Role,
    Relation,
    OsmElement,
-   Tile,
+   AreaData,
    WayType,
    ItemType,
    Tag
@@ -88,7 +88,7 @@ export const addTags = <T extends OsmElement>(
  * Optimize OSM XML object for subsequent operations.
  * @param xml Pre-parsed object having the shape of OSM XML
  */
-export function normalizeOsmXML(xml: OsmXML): Tile {
+export function normalizeOsmXML(xml: OsmXML): AreaData {
    const nodes = new Map<number, Node>();
    const ways = new Map<number, Way>();
 
@@ -147,7 +147,7 @@ export function normalizeOsmXML(xml: OsmXML): Tile {
  * @see https://github.com/tuananh/camaro/blob/develop/API.md
  * @see https://devhints.io/xpath
  */
-export function parseOsmXML(xmlText: string): Tile {
+export function parseOsmXML(xmlText: string): AreaData {
    const template = {
       // initially all nodes but later filtered to only those in routable ways
       nodes: [
