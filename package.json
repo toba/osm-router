@@ -35,7 +35,7 @@
    "dependencies": {
       "@toba/map": "^2.5.1",
       "@toba/node-tools": "^1.5.0",
-      "@types/node": "^12.12.22",
+      "@types/node": "^13.1.4",
       "@types/whatwg-fetch": "0.0.33",
       "camaro": "^3.0.19",
       "whatwg-fetch": "^3.0.0"
