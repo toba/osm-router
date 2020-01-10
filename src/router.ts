@@ -1,6 +1,13 @@
 import { measure } from '@toba/map';
-import { is, forEach } from '@toba/node-tools';
-import { RouteConfig, TravelMode, Node, Tile, Point, Status } from './types';
+import { is, forEach, clone } from '@toba/node-tools';
+import {
+   RouteConfig,
+   TravelMode,
+   Node,
+   AreaData,
+   Point,
+   Status
+} from './types';
 import { tiles } from './tile';
 import { preferences } from './config';
 import { Edges } from './edges';
@@ -9,7 +16,7 @@ import { Plan } from './plan';
 
 export interface RouteResult {
    status: Status;
-   /** OSM node IDs */
+   /** OSM node IDs traversed to connect start and end nodes */
    nodes?: number[];
 }
 
@@ -17,15 +24,14 @@ export interface RouteResult {
  * @see https://jakobmiksch.eu/post/openstreetmap_routing/
  */
 export class Router {
-   plan: Plan;
-   edges: Edges;
-   rules: Restrictions;
-   nodes: Map<number, Node>;
-
-   travelMode: string;
-   config: RouteConfig;
-   /** Whether to download tile data as needed */
-   loadAsNeeded: false;
+   private plan: Plan;
+   /** Weighted connections between all nodes */
+   private edges: Edges;
+   private rules: Restrictions;
+   /** All known OSM nodes keyed to their ID */
+   private nodes: Map<number, Node>;
+   private travelMode: string;
+   private config: RouteConfig;
 
    constructor(
       configOrMode: RouteConfig | TravelMode,
@@ -35,11 +41,10 @@ export class Router {
 
       if (is.object<RouteConfig>(configOrMode)) {
          this.travelMode = configOrMode.name;
-         this.config = configOrMode;
+         this.config = clone(configOrMode);
       } else {
          this.travelMode = configOrMode;
-         // TODO: clone instead of assign
-         this.config = preferences[this.travelMode];
+         this.config = clone(preferences[this.travelMode]);
       }
 
       this.edges = new Edges(this.config, this.travelMode);
@@ -48,22 +53,23 @@ export class Router {
       tiles.cacheHours = refreshDataAfterDays * 24;
    }
 
-   addTile(tile: Tile) {
-      tile.ways.forEach(way => {
+   addData(area: AreaData) {
+      area.ways.forEach(way => {
          // only cache nodes that are part of routable ways
          const routableNodes = this.edges.fromWay(way);
          forEach(routableNodes, n => this.nodes.set(n.id, n));
       });
-      forEach(tile.relations, r => this.rules.fromRelation(r));
+      forEach(area.relations, r => this.rules.fromRelation(r));
    }
 
-   distance = (p1: Point, p2: Point) => measure.distanceLatLon(p1, p2);
+   private distance = (p1: Point, p2: Point) => measure.distanceLatLon(p1, p2);
 
    /**
     * Find nearest accessible node to begin the route.
     */
    async nearestNode(lat: number, lon: number): Promise<number | null> {
-      if (!(await tiles.ensure(lat, lon, this.addTile))) {
+      if (!(await tiles.ensure(lat, lon, this.addData))) {
+         console.error(`Failed to load data for ${lat}, ${lon}`);
          return null;
       }
       let foundDistance = Number.POSITIVE_INFINITY;

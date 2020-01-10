@@ -51,10 +51,11 @@ export function sortNodeSets(nodes: Node[][]): boolean {
 }
 
 /**
- * Sequence of nodes grouped into `from`, `via` and `to` sets.
+ * Sequence of nodes grouped into `from`, `via` and `to` sets. There can be only
+ * one `from` and `to` set but multiple `via` sets are allowed.
  */
 export class Sequence {
-   nodes: Node[][];
+   private nodes: Node[][];
    /** Whether node sets could be sorted so all shared nodes are adjacent */
    valid = false;
 
@@ -82,6 +83,9 @@ export class Sequence {
       this.nodes[1][0].id
    ];
 
+   /**
+    * Number of node sets.
+    */
    get length() {
       return this.nodes.length;
    }

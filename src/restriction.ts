@@ -5,8 +5,8 @@ import { Sequence } from './sequence';
 const forbidPrefix = /^no_/;
 const requirePrefix = /^only_/;
 /**
- * If the first word is "no_", then no routing is possible from the "from" to
- * the "to" member. If it is "only_", then the only routing originating from the
+ * If the first word is "no_" then no routing is possible from the "from" to
+ * the "to" member. If it is "only_" then the only routing originating from the
  * "from" member leads to the "to" member.
  */
 const rulePrefix = /^(no|only)_/;
@@ -45,15 +45,18 @@ function addRule<T>(
 /**
  * Required or forbidden node sequences for mode of transportation.
  *
+ * TODO: this is not currently handling forbidden or required turns since that
+ * would require parsing to understand relative directions like left and right
+ *
  * @see https://wiki.openstreetmap.org/wiki/Relation:restriction
  */
 export class Restrictions {
    /** Sequence of required node IDs keyed to node list patterns */
-   required: Map<string, number[]>;
+   private required: Map<string, number[]>;
    /** Forbidden flag keyed to node list patterns */
-   forbidden: Map<string, boolean>;
-   travelMode: string;
-   config: RouteConfig;
+   private forbidden: Map<string, boolean>;
+   private travelMode: string;
+   private config: RouteConfig;
 
    constructor(config: RouteConfig, travelMode: string) {
       this.travelMode = travelMode;
@@ -149,7 +152,8 @@ export class Restrictions {
    }
 
    /**
-    * Whether node sequence is forbidden based on OSM `no_*` relations.
+    * Whether node list contains a sequence that is forbidden based on OSM
+    * `no_*` relations.
     */
    forbids(nodes: number[]): boolean {
       const list = nodes.join(',');
@@ -167,6 +171,7 @@ export class Restrictions {
    /**
     * Nodes that are mandatory after a given node sequence based on OSM `only_*`
     * relations.
+    * @param nodes Sequence of nodes after which the returned nodes are required
     */
    getRequired(nodes: number[]): number[] {
       const list = nodes.join(',');

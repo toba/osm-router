@@ -5,12 +5,12 @@ import { Edges } from './edges';
 import { Plan } from './plan';
 import { parseOsmXML } from './parse';
 import { tiles } from './tile';
-import { Tile, TravelMode, WayType, Node } from './types';
+import { AreaData, TravelMode, Node } from './types';
 import { preferences } from './config';
 import { Restrictions } from './restriction';
 
 const osmFile = path.join(__dirname, '__mocks__', 'simple.osm');
-let tile: Tile;
+let tile: AreaData;
 
 function getPlan(t: TravelMode): Plan {
    const config = preferences[t];
@@ -36,5 +36,5 @@ it('initializes plan', async () => {
    expect(await p.prepare(-102562, -102326)).toBe(true);
    expect(p.endPoint).toEqual([53.79920293412, 21.57283007562]);
    // way -102645 defines two directions from -102562
-   expect(p.routes.length).toBe(2);
+   expect(p.length).toBe(2);
 });

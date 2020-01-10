@@ -8,7 +8,7 @@ const cannotUse = 0;
 const reverse = /^(-1|reverse)$/;
 /** Pattern of values for forward one-way */
 const forward = /^(yes|true|one)$/;
-/** Pattern of values assignable to one-way tag */
+/** Pattern of valid values for one-way tag */
 const hasValue = /^(yes|true|1|-1)$/;
 
 /**
@@ -16,9 +16,9 @@ const hasValue = /^(yes|true|1|-1)$/;
  */
 export class Edges {
    /** Weights assigned to node-node connections based on `RouteConfig` */
-   items: Map<number, Map<number, number>>;
-   travelMode: string;
-   config: RouteConfig;
+   private items: Map<number, Map<number, number>>;
+   private travelMode: string;
+   private config: RouteConfig;
 
    constructor(config: RouteConfig, travelMode: string) {
       this.items = new Map();
@@ -48,6 +48,7 @@ export class Edges {
     * Add weighted edges from way and return routable nodes.
     */
    fromWay(way: Way): Node[] {
+      /** Value of one-way tag */
       let oneway = '';
       /** Weight for an edge (node connection) — higher values are preferred */
       let weight: number = cannotUse;
@@ -113,13 +114,18 @@ export class Edges {
    }
 
    /**
+    * Weighted nodes (IDs) connected to the given node.
+    */
+   get = (node: number) => this.items.get(node);
+
+   /**
     * Whether `from` node exists and, optionally, if it is connected to a `to`
     * node ID.
     */
    has(from: number, to?: number) {
       const exists = this.items.has(from);
       return exists && to !== undefined
-         ? this.items.get(from)!.has(to)
+         ? this.get(from)!.has(to)
          : exists;
    }
 
@@ -128,13 +134,13 @@ export class Edges {
     * returned if the nodes aren't connected.
     */
    weight = (from: number, to: number): number =>
-      this.items.get(from)?.get(to) ?? cannotUse;
+      this.get(from)?.get(to) ?? cannotUse;
 
    /**
     * Add connection weight between `from` and `to` node.
     */
    add(from: Node, to: Node, weight: number) {
-      let edge: Map<number, number> | undefined = this.items.get(from.id);
+      let edge: Map<number, number> | undefined = this.get(from.id);
 
       if (edge === undefined) {
          edge = new Map();
@@ -147,7 +153,7 @@ export class Edges {
     * Execute method for each `toNode` that `nodeID` connects to.
     */
    each(nodeID: number, fn: (weight: number, toNode: number) => void) {
-      const nodes = this.items.get(nodeID);
+      const nodes = this.get(nodeID);
       if (nodes === undefined) {
          return;
       }
@@ -159,7 +165,7 @@ export class Edges {
     * example, to map edges to route options.
     */
    map<T>(nodeID: number, fn: (weight: number, toNode: number) => T): T[] {
-      const nodes = this.items.get(nodeID);
+      const nodes = this.get(nodeID);
       if (nodes === undefined) {
          return [];
       }
