@@ -113,7 +113,7 @@ export class Sequence {
    toNode = (): number => last(this.nodes)[1].id;
 
    /**
-    * Sort sets so shared nodes are adjacent.
+    * Sort node sets so shared nodes are adjacent.
     * @example [[a, b], [b, c], [c], [c, d, e], [e, f]]
     */
    sort(): this {

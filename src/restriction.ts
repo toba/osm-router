@@ -46,7 +46,7 @@ function addRule<T>(
  * Required or forbidden node sequences for mode of transportation.
  *
  * TODO: this is not currently handling forbidden or required turns since that
- * would require parsing to understand relative directions like left and right
+ * depends on parsing to understand relative directions like left and right
  *
  * @see https://wiki.openstreetmap.org/wiki/Relation:restriction
  */

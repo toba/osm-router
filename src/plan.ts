@@ -37,6 +37,23 @@ const emptyRoute = (startNode: number): Route => ({
 });
 
 /**
+ * Distance in kilometers using Haversine formula.
+ */
+function metricDistance(p1: Point, p2: Point): number {
+   const [lat1, lon1] = p1;
+   const [lat2, lon2] = p2;
+   const dlat = lat2 - lat1;
+   const dlon = lon2 - lon1;
+   const d =
+      Math.sin(measure.toRadians(dlat) * 0.5) ** 2 +
+      Math.cos(measure.toRadians(lat1)) *
+         Math.cos(measure.toRadians(lat2)) *
+         Math.sin(measure.toRadians(dlon) * 0.5) ** 2;
+
+   return Math.asin(Math.sqrt(d)) * 12742;
+}
+
+/**
  * Copy an existing route and extend it to include a new end node. This updates
  * node values but *not* costs.
  */
@@ -235,9 +252,8 @@ export class Plan {
       const toPoint = this.nodes.get(toNode)!.point();
       const fromPoint = this.nodes.get(fromNode)!.point();
 
-      route.cost += measure.distanceLatLon(fromPoint, toPoint) / weight;
-      route.heuristicCost =
-         route.cost + measure.distanceLatLon(toPoint, this.endPoint);
+      route.cost += metricDistance(fromPoint, toPoint) / weight;
+      route.heuristicCost = route.cost + metricDistance(toPoint, this.endPoint);
 
       /** Existing route that already connects with `toNode` */
       const existingRoute = this.routes.find(p => p.endNode == toNode);
