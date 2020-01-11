@@ -9,7 +9,7 @@
 
 # Toba OSM Router
 
-A TypeScript adaptation of [pyroutelib4](https://github.com/MKuranowski/pyroutelib3) (itself an update of [pyroutelib2](https://github.com/gaulinmp/pyroutelib2)).
+A TypeScript adaptation of [pyroutelib3](https://github.com/MKuranowski/pyroutelib3) (itself an update of [pyroutelib2](https://github.com/gaulinmp/pyroutelib2)).
 
 ## License
 
