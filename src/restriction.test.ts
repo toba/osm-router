@@ -28,14 +28,23 @@ it('checks if travel mode is allowed in way', () => {
    expect(allowTravelMode(tags, canUse)).toBe(false);
 });
 
-it('disallows based on turn restrictions', () => {
-   const r = getRestrictions(TravelMode.Car);
+it('disallows nodes based on turn restrictions', () => {
+   const car = getRestrictions(TravelMode.Car);
+   const bus = getRestrictions(TravelMode.Bus);
+
    // from relation -102651
-   expect(r.forbids([-102530, -102522, -102476])).toBe(true);
-   expect(r.forbids([-102356, -102358, -102522])).toBe(false);
+   expect(car.forbids([-102530, -102522, -102476])).toBe(true);
+   expect(car.forbids([-102356, -102358, -102522])).toBe(false);
+
+   // from relation -102646
+   expect(car.forbids([-102348, -102350, -102352, -102394])).toBe(true);
+   // bus is excepted
+   expect(bus.forbids([-102350, -102352, -102394])).toBe(false);
+   // reverse direction allowed
+   expect(car.forbids([-102394, -102352, -102350])).toBe(false);
 });
 
-it('requires based on only_ rule', () => {
+it('requires nodes based on only_ rule', () => {
    const r = getRestrictions(TravelMode.Car);
    const pattern = [-102472, -102478];
    const required = [

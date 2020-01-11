@@ -59,24 +59,35 @@ it('indicates if edge includes a node', () => {
 });
 
 it('retrieves edge weight from route configuration', () => {
-   const config = preferences[TravelMode.Car];
+   const weights = preferences[TravelMode.Car].weights;
    const e = getEdges(TravelMode.Car, -102627, -102626, -102620);
 
-   expect(e.weight(-102400, -102402)).toBe(config.weights[WayType.Residential]);
-   expect(e.weight(-102350, -102352)).toBe(config.weights[WayType.Primary]);
-   expect(e.weight(-102350, -102348)).toBe(config.weights[WayType.Primary]);
+   expect(e.weight(-102400, -102402)).toBe(weights[WayType.Residential]);
+   expect(e.weight(-102350, -102352)).toBe(weights[WayType.Primary]);
+   expect(e.weight(-102350, -102348)).toBe(weights[WayType.Primary]);
 
    // expect two-way edges to have standard weight
    new Map([
       [WayType.Primary, [-102350, -102352]],
       [WayType.Primary, [-102348, -102346]]
    ]).forEach(([n1, n2], wayType) => {
-      const w = config.weights[wayType];
+      const w = weights[wayType];
       expect(w).toBeGreaterThan(0);
       expect(e.weight(n1, n2)).toBe(w);
       expect(e.weight(n2, n1)).toBe(w);
    });
 });
+
+// it('creates different edges for different travel modes', () => {
+//    // left turn car restriction between -102626 and -102622 defined by -102646
+//    const carWeights = preferences[TravelMode.Car].weights;
+//    const busWeights = preferences[TravelMode.Bus].weights;
+//    const carEdges = getEdges(TravelMode.Car, -102622, -102626);
+//    const busEdges = getEdges(TravelMode.Bus, -102622, -102626);
+
+//    expect(busEdges.length).toBe(3);
+//    expect(carEdges.length).toBe(3);
+// });
 
 it('iterates all edges starting with a node', () => {
    const e = getEdges(TravelMode.Car, -102645);
@@ -88,7 +99,7 @@ it('iterates all edges starting with a node', () => {
 });
 
 it('maps edges to an array', () => {
-   const config = preferences[TravelMode.Car];
+   const weights = preferences[TravelMode.Car].weights;
    const e = getEdges(TravelMode.Car, -102622, -102624, -102626);
    const fn = jest.fn();
 
@@ -98,9 +109,9 @@ it('maps edges to an array', () => {
 
    let count = 1;
    new Map([
-      [-102394, config.weights[WayType.Residential]],
-      [-102354, config.weights[WayType.Primary]],
-      [-102350, config.weights[WayType.Primary]]
+      [-102394, weights[WayType.Residential]],
+      [-102354, weights[WayType.Primary]],
+      [-102350, weights[WayType.Primary]]
    ]).forEach((weight, node) => {
       expect(fn).toHaveBeenNthCalledWith(count++, weight, node);
    });

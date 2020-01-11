@@ -142,6 +142,9 @@ export class Plan {
       return this.routes.length;
    }
 
+   /**
+    * Ensure OSM node and way data are loaded for a coordinate.
+    */
    private async ensureData(p: Point) {
       if (!(await tiles.ensure(p[0], p[1], this.onLoad))) {
          throw new Error(`Unable to load data for point ${p}`);
@@ -185,7 +188,7 @@ export class Plan {
          }
 
          if (route.required.length > 0) {
-            // traverse mandatory turns
+            // traverse mandatory nodes
             evaluated = false;
             /** Next required node */
             const requiredNode = route.required.shift()!;

@@ -4,12 +4,12 @@ import { allowTravelMode } from './restriction';
 
 /** Weight (or below) indicating way is not usable */
 const cannotUse = 0;
-/** Pattern of values for reverse one-way */
+/** Pattern indicating one-way enforced in direction opposite the node order */
 const reverse = /^(-1|reverse)$/;
-/** Pattern of values for forward one-way */
-const forward = /^(yes|true|one)$/;
-/** Pattern of valid values for one-way tag */
-const hasValue = /^(yes|true|1|-1)$/;
+/** Pattern of values indicating one-way in node order */
+const forward = /^(yes|true|1)$/;
+/** Pattern of values indicating one-way restriction is in effect */
+const isOneWay = /^(yes|true|1|-1|reverse)$/;
 
 /**
  * Weighted connections between nodes for a given mode of travel.
@@ -46,6 +46,8 @@ export class Edges {
 
    /**
     * Add weighted edges from way and return routable nodes.
+    *
+    * @see https://wiki.openstreetmap.org/wiki/Key:oneway
     */
    fromWay(way: Way): Node[] {
       /** Value of one-way tag */
@@ -72,7 +74,7 @@ export class Edges {
 
          if (
             this.travelMode == TravelMode.Walk ||
-            (hasValue.test(oneway) &&
+            (isOneWay.test(oneway) &&
                way.tags[Tag.OneWay + ':' + this.travelMode] == 'no')
          ) {
             // disable one-way setting for foot traffic or explicit tag
@@ -124,9 +126,7 @@ export class Edges {
     */
    has(from: number, to?: number) {
       const exists = this.items.has(from);
-      return exists && to !== undefined
-         ? this.get(from)!.has(to)
-         : exists;
+      return exists && to !== undefined ? this.get(from)!.has(to) : exists;
    }
 
    /**

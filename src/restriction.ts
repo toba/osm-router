@@ -80,6 +80,9 @@ export class Restrictions {
     * Retrieve restriction type from relation or `null` if there are no
     * applicable restrictions.
     *
+    * @example no_right_turn / no_left_turn / no_u_turn / no_straight_on /
+    * only_right_turn / only_left_turn / only_straight_on / no_entry / no_exit
+    *
     * Use `RegEx` to compare sequences when possible because it's faster.
     * @see https://www.measurethat.net/Benchmarks/Show/4797/1/js-regex-vs-startswith-vs-indexof
     */
@@ -135,11 +138,12 @@ export class Restrictions {
     * `no_*` relations.
     */
    forbids(nodes: number[]): boolean {
+      /** Serialized list of route nodes */
       const list = nodes.join(',');
       let forbidden = false;
 
       this.forbidden.forEach((enabled, pattern) => {
-         if (!forbidden && enabled && pattern.includes(list)) {
+         if (!forbidden && enabled && list.includes(pattern)) {
             forbidden = true;
          }
       });
