@@ -39,8 +39,8 @@ export function allowTravelMode(wayTags: TagMap, accessTypes: Tag[]): boolean {
 export class Restrictions {
    /** Sequence of required node IDs keyed to node list patterns */
    private required: Map<string, number[]>;
-   /** Forbidden flag keyed to node list patterns */
-   private forbidden: Map<string, boolean>;
+   /** Node sequences forbidden by relation restrictions */
+   private forbidden: Set<string>;
    private travelMode: string;
    private config: RouteConfig;
 
@@ -48,7 +48,7 @@ export class Restrictions {
       this.travelMode = travelMode;
       this.config = config;
       this.required = new Map();
-      this.forbidden = new Map();
+      this.forbidden = new Set();
    }
 
    /**
@@ -64,7 +64,7 @@ export class Restrictions {
 
       if (sequence.sort().valid) {
          if (forbidPrefix.test(restrictionType)) {
-            this.forbidden.set(sequence.allNodes.join(','), true);
+            this.forbidden.add(sequence.allNodes.join(','));
          } else if (requirePrefix.test(restrictionType)) {
             this.required.set(sequence.fromNodes.join(','), [
                ...sequence.viaNodes,
@@ -122,7 +122,7 @@ export class Restrictions {
    /**
     * Execute method for each forbidden pattern.
     */
-   eachForbidden(fn: (enabled: boolean, pattern: string) => void) {
+   eachForbidden(fn: (pattern: string) => void) {
       this.forbidden.forEach(fn);
    }
 
@@ -142,8 +142,8 @@ export class Restrictions {
       const list = nodes.join(',');
       let forbidden = false;
 
-      this.forbidden.forEach((enabled, pattern) => {
-         if (!forbidden && enabled && list.includes(pattern)) {
+      this.forbidden.forEach(pattern => {
+         if (!forbidden && list.includes(pattern)) {
             forbidden = true;
          }
       });

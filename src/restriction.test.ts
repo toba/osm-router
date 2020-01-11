@@ -3,7 +3,7 @@ import { allowTravelMode, Restrictions } from './restriction';
 import { preferences } from './config';
 import { Tag, WayType, TagMap, AreaData, TravelMode } from './types';
 import { sampleData } from './__mocks__';
-import { forEach } from '@toba/node-tools';
+import { forEach, reverse } from '@toba/node-tools';
 
 let osm: AreaData;
 
@@ -36,12 +36,16 @@ it('disallows nodes based on turn restrictions', () => {
    expect(car.forbids([-102530, -102522, -102476])).toBe(true);
    expect(car.forbids([-102356, -102358, -102522])).toBe(false);
 
+   const pattern = [-102350, -102352, -102394];
+
    // from relation -102646
-   expect(car.forbids([-102348, -102350, -102352, -102394])).toBe(true);
+   expect(car.forbids(pattern)).toBe(true);
+   // additional nodes don't change result
+   expect(car.forbids([-102348, ...pattern])).toBe(true);
    // bus is excepted
-   expect(bus.forbids([-102350, -102352, -102394])).toBe(false);
+   expect(bus.forbids(pattern)).toBe(false);
    // reverse direction allowed
-   expect(car.forbids([-102394, -102352, -102350])).toBe(false);
+   expect(car.forbids(reverse(pattern))).toBe(false);
 });
 
 it('requires nodes based on only_ rule', () => {
