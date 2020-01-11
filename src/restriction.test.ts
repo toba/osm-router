@@ -35,36 +35,8 @@ it('disallows based on turn restrictions', () => {
    expect(r.forbids([-102356, -102358, -102522])).toBe(false);
 });
 
-/*
- <relation id='-102648' action='modify' visible='true'>
-    <member type='way' ref='-102631' role='from' />
-    <member type='way' ref='-102633' role='via' />
-    <member type='way' ref='-102634' role='via' />
-    <member type='way' ref='-102638' role='to' />
-    <tag k='restriction' v='only_straight_on' />
-    <tag k='type' v='restriction' />
-  </relation>
-*/
-
 it('requires based on only_ rule', () => {
    const r = getRestrictions(TravelMode.Car);
-   // from relation -102648
-   // key: -102472,-102478,-102522
-   // 0: -102508
-   // 1:-102510
-   // 2:-102512
-   // 3:-102514
-   // 4:-102516
-   // 5:-102474
-   // 6:-102480
-   // 7:-102482
-   // 8:-102484
-   // 9:-102486
-   // 10:-102488
-   // 11:-102490
-   // 12:-102476
-   //expect(r.getRequired([-102506, -102478])).toEqual([-102522, -102476]);
-
    const pattern = [-102472, -102478];
    const required = [
       -102508,
