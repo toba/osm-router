@@ -1,11 +1,6 @@
 import { intersects, forEach } from '@toba/node-tools';
-import {
-   Relation,
-   Tag,
-   TravelMode,
-   RouteConfig,
-   TagMap
-} from '@toba/osm-models';
+import { Relation, Tag, TravelMode, TagMap } from '@toba/osm-models';
+import { RouteConfig } from './types';
 import { Sequence } from './sequence';
 
 const forbidPrefix = /^no_/;

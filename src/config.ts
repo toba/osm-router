@@ -1,4 +1,5 @@
-import { RouteMode, TravelMode, WayType, Tag } from '@toba/osm-models';
+import { TravelMode, WayType, Tag } from '@toba/osm-models';
+import { RouteMode } from './types';
 
 export const preferences: RouteMode = {
    [TravelMode.Car]: {

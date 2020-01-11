@@ -1,7 +1,7 @@
 {
    "name": "@toba/osm-router",
    "description": "Toba OSM Router",
-   "version": "1.0.2",
+   "version": "1.0.3",
    "private": false,
    "publishConfig": {
       "access": "public"
@@ -35,7 +35,7 @@
    "dependencies": {
       "@toba/map": "^2.5.1",
       "@toba/node-tools": "^1.5.2",
-      "@toba/osm-models": "^1.0.0",
+      "@toba/osm-models": "^1.0.4",
       "@types/node": "^13.1.6",
       "@types/whatwg-fetch": "0.0.33",
       "camaro": "^3.0.19",

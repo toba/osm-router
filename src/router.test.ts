@@ -1,5 +1,6 @@
 import '@toba/test';
-import { TravelMode, Point, Status } from '@toba/osm-models';
+import { TravelMode, Point } from '@toba/osm-models';
+import { Status } from './types';
 import { Router } from './router';
 import { sampleData } from './__mocks__';
 

@@ -1,12 +1,6 @@
 import { is, forEach } from '@toba/node-tools';
-import {
-   Node,
-   Tag,
-   Way,
-   WayType,
-   TravelMode,
-   RouteConfig
-} from '@toba/osm-models';
+import { Node, Tag, Way, WayType, TravelMode } from '@toba/osm-models';
+import { RouteConfig } from './types';
 import { allowTravelMode } from './restriction';
 
 /** Weight (or below) indicating way is not usable */

@@ -1,13 +1,7 @@
 import { measure } from '@toba/map';
 import { is, forEach, clone } from '@toba/node-tools';
-import {
-   RouteConfig,
-   TravelMode,
-   Node,
-   AreaData,
-   Point,
-   Status
-} from '@toba/osm-models';
+import { TravelMode, Node, AreaData, Point } from '@toba/osm-models';
+import { RouteConfig, Status } from './types';
 import { tiles } from './tile';
 import { preferences } from './config';
 import { Edges } from './edges';

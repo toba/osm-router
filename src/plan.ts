@@ -1,6 +1,7 @@
 import { measure } from '@toba/map';
 import { removeItem } from '@toba/tools';
-import { Node, Point, Status, AreaData } from '@toba/osm-models';
+import { Node, Point, AreaData } from '@toba/osm-models';
+import { Status } from './types';
 import { Edges } from './edges';
 import { Restrictions } from './restriction';
 import { nextToLast } from './sequence';
