@@ -1,31 +1,24 @@
 import '@toba/test';
-import path from 'path';
-import { readFileText } from '@toba/node-tools';
+import { sampleData } from './__mocks__';
 import { Edges } from './edges';
 import { Plan } from './plan';
-import { parseOsmXML } from './parse';
-import { tiles } from './tile';
 import { AreaData, TravelMode, Node } from './types';
 import { preferences } from './config';
 import { Restrictions } from './restriction';
 
-const osmFile = path.join(__dirname, '__mocks__', 'simple.osm');
-let tile: AreaData;
+let osm: AreaData;
 
 function getPlan(t: TravelMode): Plan {
    const config = preferences[t];
    const e = new Edges(config, t);
    const nodes = new Map<number, Node>();
 
-   tile.ways.forEach(way => e.fromWay(way).forEach(n => nodes.set(n.id, n)));
+   osm.ways.forEach(way => e.fromWay(way).forEach(n => nodes.set(n.id, n)));
 
    return new Plan(nodes, e, new Restrictions(config, t));
 }
 
-beforeAll(async () => {
-   tile = parseOsmXML(await readFileText(osmFile));
-   tiles.fetchIfMissing = false;
-});
+beforeAll(async () => (osm = await sampleData()));
 
 it('initializes plan', async () => {
    const p = getPlan(TravelMode.Car);

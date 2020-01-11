@@ -1,11 +1,21 @@
 import '@toba/test';
 import { reverse } from '@toba/node-tools';
-import { sharedNode, nextToLast, last, sortNodeSets } from './sequence';
-import { Node } from './types';
+import {
+   sharedNode,
+   nextToLast,
+   last,
+   sortNodeSets,
+   Sequence
+} from './sequence';
+import { Node, AreaData } from './types';
+import { sampleData } from './__mocks__';
 
 const nodes: Node[] = [];
+let osm: AreaData;
 
-beforeAll(() => {
+beforeAll(async () => {
+   osm = await sampleData();
+
    for (let i = 0; i < 20; i++) {
       nodes.push({
          id: i,
@@ -58,4 +68,34 @@ it('sorts sets of nodes so common nodes are adjacent', () => {
 
    expect(fixed).toBe(true);
    expect(groups[1]).toEqual(set2);
+});
+
+it('creates sequence from OSM relation', () => {
+   const rel = osm.relations.find(r => r.id == -102648);
+
+   expect(rel).toBeDefined();
+
+   if (rel == undefined) {
+      return;
+   }
+   const seq = new Sequence(rel);
+
+   expect(seq.sort().valid).toBe(true);
+   expect(seq.fromNodes).toEqual([-102472, -102478]);
+   expect(seq.viaNodes).toEqual([
+      -102508,
+      -102510,
+      -102512,
+      -102514,
+      -102516,
+      -102474,
+      -102480,
+      -102482,
+      -102484,
+      -102486,
+      -102488,
+      -102490,
+      -102476
+   ]);
+   expect(seq.toNode).toEqual(-102522);
 });

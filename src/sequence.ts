@@ -76,12 +76,12 @@ export class Sequence {
    }
 
    /**
-    * Set of nodes traveller is comeing from.
+    * Set of nodes traveller is coming from is the last unique node of the OSM
+    * relation "from" member and the first "via" node.
     */
-   fromNodes = (): number[] => [
-      nextToLast(this.nodes[0]).id,
-      this.nodes[1][0].id
-   ];
+   get fromNodes(): [number, number] {
+      return [nextToLast(this.nodes[0]).id, this.nodes[1][0].id];
+   }
 
    /**
     * Number of node sets.
@@ -91,10 +91,17 @@ export class Sequence {
    }
 
    /**
+    * Nodes from all sets flattened into single unique list.
+    */
+   get allNodes(): number[] {
+      return [...this.fromNodes, ...this.viaNodes, this.toNode];
+   }
+
+   /**
     * Node IDs between the first and last sets ("from" and "to") and excluding
     * common IDs connecting the sets.
     */
-   viaNodes = (): number[] => {
+   get viaNodes(): number[] {
       const via: number[] = [];
 
       for (let i = 1; i < this.length - 1; i++) {
@@ -105,12 +112,14 @@ export class Sequence {
          }
       }
       return via;
-   };
+   }
 
    /**
     * First unique node ID at destination.
     */
-   toNode = (): number => last(this.nodes)[1].id;
+   get toNode(): number {
+      return last(this.nodes)[1].id;
+   }
 
    /**
     * Sort node sets so shared nodes are adjacent.

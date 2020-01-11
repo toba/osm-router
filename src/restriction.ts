@@ -8,6 +8,8 @@ const requirePrefix = /^only_/;
  * If the first word is "no_" then no routing is possible from the "from" to
  * the "to" member. If it is "only_" then the only routing originating from the
  * "from" member leads to the "to" member.
+ *
+ * This is true for both direction and turn restrictions.
  */
 const rulePrefix = /^(no|only)_/;
 const noAccess = /^(no|private)$/;
@@ -30,23 +32,7 @@ export function allowTravelMode(wayTags: TagMap, accessTypes: Tag[]): boolean {
 }
 
 /**
- * @param nodeIDs Sequence of IDs that trigger a rule
- */
-function addRule<T>(
-   hash: Map<string, T>,
-   value: T,
-   nodeIDs: number[],
-   toNode: number
-) {
-   nodeIDs.push(toNode);
-   hash.set(nodeIDs.join(','), value);
-}
-
-/**
  * Required or forbidden node sequences for mode of transportation.
- *
- * TODO: this is not currently handling forbidden or required turns since that
- * depends on parsing to understand relative directions like left and right
  *
  * @see https://wiki.openstreetmap.org/wiki/Relation:restriction
  */
@@ -78,19 +64,12 @@ export class Restrictions {
 
       if (sequence.sort().valid) {
          if (forbidPrefix.test(restrictionType)) {
-            addRule(
-               this.forbidden,
-               true,
-               [...sequence.fromNodes(), ...sequence.viaNodes()],
-               sequence.toNode()
-            );
+            this.forbidden.set(sequence.allNodes.join(','), true);
          } else if (requirePrefix.test(restrictionType)) {
-            addRule(
-               this.required,
-               sequence.viaNodes(),
-               sequence.fromNodes(),
-               sequence.toNode()
-            );
+            this.required.set(sequence.fromNodes.join(','), [
+               ...sequence.viaNodes,
+               sequence.toNode
+            ]);
          }
       } else {
          console.error(`Relation ${r.id} could not be processed`);

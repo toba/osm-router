@@ -1,20 +1,16 @@
 import '@toba/test';
-import path from 'path';
-import { readFileText } from '@toba/node-tools';
 import { Edges } from './edges';
-import { parseOsmXML } from './parse';
-import { tiles } from './tile';
 import { AreaData, TravelMode, WayType } from './types';
 import { preferences } from './config';
+import { sampleData } from './__mocks__';
 
-const osmFile = path.join(__dirname, '__mocks__', 'simple.osm');
-let tile: AreaData;
+let osm: AreaData;
 
 function getEdges(t: TravelMode, ...ways: number[]): Edges {
    const e = new Edges(preferences[t], t);
 
    ways.forEach(id => {
-      const way = tile.ways.get(id);
+      const way = osm.ways.get(id);
       expect(way).toBeDefined();
       e.fromWay(way!);
    });
@@ -22,10 +18,7 @@ function getEdges(t: TravelMode, ...ways: number[]): Edges {
    return e;
 }
 
-beforeAll(async () => {
-   tile = parseOsmXML(await readFileText(osmFile));
-   tiles.fetchIfMissing = false;
-});
+beforeAll(async () => (osm = await sampleData()));
 
 it('creates weighted edges for each node in a way', () => {
    new Map<number, number[]>([

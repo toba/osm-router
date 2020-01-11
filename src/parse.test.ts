@@ -1,14 +1,11 @@
 import '@toba/test';
-import path from 'path';
-import { readFileText } from '@toba/node-tools';
-import { parseOsmXML, addTags } from './parse';
+import { addTags } from './parse';
 import { AreaData, WayType, Tag, OsmElement } from './types';
-
-const osmFile = path.join(__dirname, '__mocks__', 'simple.osm');
+import { sampleData } from './__mocks__';
+import { forEach } from '@toba/node-tools';
 
 it('converts OSM XML to an object', async () => {
-   const osmText: string = await readFileText(osmFile);
-   const osm: AreaData = parseOsmXML(osmText);
+   const osm: AreaData = await sampleData();
 
    expect(osm.nodes.size).toBe(189);
    expect(osm.ways.size).toBe(33);
@@ -29,6 +26,22 @@ it('converts OSM XML to an object', async () => {
    expect(way.nodes[0].id).toBe(-102446);
    expect(way.nodes[0].lat).toBe(53.79681712755);
    expect(way.nodes[0].point()).toEqual([53.79681712755, 21.56294344783]);
+});
+
+it('normalizes relation members', async () => {
+   const osm: AreaData = await sampleData();
+   const r = osm.relations.find(r => r.id == -102648);
+
+   expect(r).toBeDefined();
+
+   if (r === undefined) {
+      return;
+   }
+   expect(r.members).toHaveLength(4);
+
+   forEach([3, 8, 7, 2], (count, i) => {
+      expect(r.members[i].nodes).toHaveLength(count);
+   });
 });
 
 it('converts tags to plain object with synonym substitutions', () => {

@@ -1,24 +1,17 @@
 import '@toba/test';
-import path from 'path';
-import { readFileText } from '@toba/node-tools';
 import { Router } from './router';
 import { TravelMode, Point, Status } from './types';
-import { parseOsmXML } from './parse';
-import { tiles } from './tile';
+import { sampleData } from './__mocks__';
 
-const osmFile = path.join(__dirname, '__mocks__', 'simple.osm');
 const carRoute = new Router(TravelMode.Car);
 const busRoute = new Router(TravelMode.Bus);
 const p1 = [53.7926757, 21.5732485] as Point;
 const p2 = [53.799199, 21.5726826] as Point;
 
 beforeAll(async () => {
-   const osmText: string = await readFileText(osmFile);
-   const tile = parseOsmXML(osmText);
-
-   tiles.fetchIfMissing = false;
-   carRoute.addData(tile);
-   busRoute.addData(tile);
+   const osm = await sampleData();
+   carRoute.addData(osm);
+   busRoute.addData(osm);
 });
 
 it('finds node nearest to coordinates', async () => {
