@@ -1,6 +1,6 @@
 import '@toba/test';
+import { AreaData, WayType, Tag, OsmElement } from '@toba/osm-models';
 import { addTags } from './parse';
-import { AreaData, WayType, Tag, OsmElement } from './types';
 import { sampleData } from './__mocks__';
 import { forEach } from '@toba/node-tools';
 

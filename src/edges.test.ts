@@ -1,6 +1,6 @@
 import '@toba/test';
 import { Edges } from './edges';
-import { AreaData, TravelMode, WayType } from './types';
+import { AreaData, TravelMode, WayType } from '@toba/osm-models';
 import { preferences } from './config';
 import { sampleData } from './__mocks__';
 

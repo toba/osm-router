@@ -7,7 +7,7 @@ import {
    sortNodeSets,
    Sequence
 } from './sequence';
-import { Node, AreaData } from './types';
+import { Node, AreaData } from '@toba/osm-models';
 import { sampleData } from './__mocks__';
 
 const nodes: Node[] = [];

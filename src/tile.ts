@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { measure } from '@toba/map';
 import { ensureAllExist, writeFile } from '@toba/node-tools';
-import { Point, BoundingBox, AreaData } from './types';
+import { Point, BoundingBox, AreaData } from '@toba/osm-models';
 import { parseOsmXML } from './parse';
 
 const ext = 'osm';

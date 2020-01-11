@@ -1,6 +1,6 @@
 import { measure } from '@toba/map';
-import { removeItem, forEach } from '@toba/tools';
-import { Node, Point, Status, AreaData } from './types';
+import { removeItem } from '@toba/tools';
+import { Node, Point, Status, AreaData } from '@toba/osm-models';
 import { Edges } from './edges';
 import { Restrictions } from './restriction';
 import { nextToLast } from './sequence';

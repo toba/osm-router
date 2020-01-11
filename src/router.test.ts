@@ -1,6 +1,6 @@
 import '@toba/test';
+import { TravelMode, Point, Status } from '@toba/osm-models';
 import { Router } from './router';
-import { TravelMode, Point, Status } from './types';
 import { sampleData } from './__mocks__';
 
 const carRoute = new Router(TravelMode.Car);

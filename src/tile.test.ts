@@ -1,6 +1,6 @@
 import '@toba/test';
+import { Point } from '@toba/osm-models';
 import { tiles, tilePosition, tileBoundary } from './tile';
-import { Point } from './types';
 
 const sample: Point = [53.7926757, 21.5732485];
 const boise: Point = [43.61778, -116.199717];

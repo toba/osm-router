@@ -7,7 +7,7 @@ import {
    AreaData,
    Point,
    Status
-} from './types';
+} from '@toba/osm-models';
 import { tiles } from './tile';
 import { preferences } from './config';
 import { Edges } from './edges';

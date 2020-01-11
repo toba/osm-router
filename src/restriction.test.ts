@@ -1,7 +1,7 @@
 import '@toba/test';
+import { Tag, WayType, TagMap, AreaData, TravelMode } from '@toba/osm-models';
 import { allowTravelMode, Restrictions } from './restriction';
 import { preferences } from './config';
-import { Tag, WayType, TagMap, AreaData, TravelMode } from './types';
 import { sampleData } from './__mocks__';
 import { forEach, reverse } from '@toba/node-tools';
 

@@ -1,8 +1,8 @@
 import path from 'path';
-import { AreaData } from '../types';
+import { AreaData } from '@toba/osm-models';
+import { readFileText } from '@toba/node-tools';
 import { parseOsmXML } from '../parse';
 import { tiles } from '../tile';
-import { readFileText } from '@toba/node-tools';
 
 const cache = new Map<string, AreaData>();
 
@@ -22,5 +22,4 @@ export async function sampleData(fileName = 'simple'): Promise<AreaData> {
       );
    }
    return cache.get(fileName)!;
-
 }

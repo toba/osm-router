@@ -1,5 +1,5 @@
 import { reverse } from '@toba/node-tools';
-import { Node, Relation, Role } from './types';
+import { Node, Relation, Role } from '@toba/osm-models';
 
 export const sharedNode = <T>(nodes1: T[], nodes2: T[]) =>
    nodes1.find(n => nodes2.includes(n));

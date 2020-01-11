@@ -1,5 +1,4 @@
 import { forEach } from '@toba/node-tools';
-import transform from 'camaro';
 import {
    Node,
    Way,
@@ -10,7 +9,8 @@ import {
    WayType,
    ItemType,
    Tag
-} from './types';
+} from '@toba/osm-models';
+import transform from 'camaro';
 
 interface ItemXML {
    id: number;
