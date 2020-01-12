@@ -66,7 +66,7 @@ export class Router {
          console.error(`Failed to load data for ${lat}, ${lon}`);
          return null;
       }
-      let foundDistance = Number.POSITIVE_INFINITY;
+      let foundDistance = Infinity;
       let foundNode: number | null = null;
 
       this.nodes.forEach((node, nodeID) => {

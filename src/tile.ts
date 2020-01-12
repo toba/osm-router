@@ -44,7 +44,7 @@ export function tilePosition(p: Point, zoom: number = defaultZoom) {
 const fileAge = (path: string): Promise<number> =>
    new Promise<number>(resolve =>
       fs.stat(path, (err, stats) => {
-         resolve(err === null ? stats.mtimeMs : Number.NEGATIVE_INFINITY);
+         resolve(err === null ? stats.mtimeMs : -Infinity);
       })
    );
 
