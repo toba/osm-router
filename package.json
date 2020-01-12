@@ -33,7 +33,7 @@
    },
    "#": "https://github.com/nodejs/node-gyp/wiki/Updating-npm's-bundled-node-gyp",
    "dependencies": {
-      "@toba/map": "^2.5.1",
+      "@toba/map": "^2.6.1",
       "@toba/node-tools": "^1.5.2",
       "@toba/osm-models": "^1.0.4",
       "@types/node": "^13.1.6",
