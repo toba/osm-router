@@ -70,6 +70,41 @@ export function tileBoundary(
 }
 
 /**
+ *
+ * @param folder Absolute path of directory where file should be written
+ * @param onLoad Optional method to call when tile data are loaded
+ * @returns Whether file could be downloaded
+ * @see https://wiki.openstreetmap.org/wiki/API_v0.6#Retrieving_map_data_by_bounding_box:_GET_.2Fapi.2F0.6.2Fmap
+ */
+async function downloadInBoundary(
+   folder: string,
+   fileName: string,
+   x: number,
+   y: number,
+   onLoad?: (t: AreaData) => void
+): Promise<boolean> {
+   const [left, bottom, right, top] = tileBoundary(x, y);
+
+   try {
+      const res = await fetch(
+         `https://api.openstreetmap.org/api/0.6/map?bbox=${left},${bottom},${right},${top}`
+      );
+      const text = await res.text();
+
+      await writeFile(fileName, text, folder, ext);
+
+      if (onLoad !== undefined) {
+         onLoad(parseOsmXML(text));
+      }
+   } catch (e) {
+      // called methods should already have logged message
+      downloadedTiles.delete(fileName);
+      return false;
+   }
+   return true;
+}
+
+/**
  * Ensure tile data have been cached.
  * @param onLoad Optional method to call when tile data are loaded
  */
@@ -101,41 +136,6 @@ async function ensureTiles(
    return age > cacheSeconds * 1000
       ? downloadInBoundary(folder, name, x, y, onLoad)
       : true;
-}
-
-/**
- *
- * @param folder Absolute path of directory where file should be written
- * @param onLoad Optional method to call when tile data are loaded
- * @returns Whether file could be downloaded
- * @see https://wiki.openstreetmap.org/wiki/API_v0.6#Retrieving_map_data_by_bounding_box:_GET_.2Fapi.2F0.6.2Fmap
- */
-async function downloadInBoundary(
-   folder: string,
-   fileName: string,
-   x: number,
-   y: number,
-   onLoad?: (t: AreaData) => void
-): Promise<boolean> {
-   const [left, bottom, right, top] = tileBoundary(x, y);
-
-   try {
-      const res = await fetch(
-         `https://api.openstreetmap.org/api/0.6/map?bbox=${left},${bottom},${right},${top}`
-      );
-      const text = await res.text();
-
-      await writeFile(fileName, text, folder, ext);
-
-      if (onLoad !== undefined) {
-         onLoad(parseOsmXML(text));
-      }
-   } catch (e) {
-      // called methods should already have logged message
-      downloadedTiles.delete(name);
-      return false;
-   }
-   return true;
 }
 
 /**

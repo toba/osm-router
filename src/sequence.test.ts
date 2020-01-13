@@ -1,5 +1,6 @@
 import '@toba/test';
 import { reverse } from '@toba/node-tools';
+import { Node, AreaData } from '@toba/osm-models';
 import {
    sharedNode,
    nextToLast,
@@ -7,7 +8,6 @@ import {
    sortNodeSets,
    Sequence
 } from './sequence';
-import { Node, AreaData } from '@toba/osm-models';
 import { sampleData } from './__mocks__';
 
 const nodes: Node[] = [];

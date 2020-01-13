@@ -1,8 +1,8 @@
 import '@toba/test';
 import { AreaData, WayType, Tag, OsmElement } from '@toba/osm-models';
+import { forEach } from '@toba/node-tools';
 import { addTags } from './parse';
 import { sampleData } from './__mocks__';
-import { forEach } from '@toba/node-tools';
 
 it('converts OSM XML to an object', async () => {
    const osm: AreaData = await sampleData();

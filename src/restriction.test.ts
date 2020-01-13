@@ -1,9 +1,9 @@
 import '@toba/test';
 import { Tag, WayType, TagMap, AreaData, TravelMode } from '@toba/osm-models';
+import { forEach, reverse } from '@toba/node-tools';
 import { allowTravelMode, Restrictions } from './restriction';
 import { preferences } from './config';
 import { sampleData } from './__mocks__';
-import { forEach, reverse } from '@toba/node-tools';
 
 let osm: AreaData;
 
