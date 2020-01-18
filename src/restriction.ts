@@ -1,10 +1,10 @@
-import { intersects, forEach } from '@toba/node-tools';
-import { Relation, Tag, TravelMode, TagMap } from '@toba/osm-models';
-import { RouteConfig } from './types';
-import { Sequence } from './sequence';
+import { intersects, forEach } from '@toba/node-tools'
+import { Relation, Tag, TravelMode, TagMap } from '@toba/osm-models'
+import { RouteConfig } from './types'
+import { Sequence } from './sequence'
 
-const forbidPrefix = /^no_/;
-const requirePrefix = /^only_/;
+const forbidPrefix = /^no_/
+const requirePrefix = /^only_/
 /**
  * If the first word is "no_" then no routing is possible from the "from" to
  * the "to" member. If it is "only_" then the only routing originating from the
@@ -12,24 +12,24 @@ const requirePrefix = /^only_/;
  *
  * This is true for both direction and turn restrictions.
  */
-const rulePrefix = /^(no|only)_/;
-const noAccess = /^(no|private)$/;
+const rulePrefix = /^(no|only)_/
+const noAccess = /^(no|private)$/
 
 /**
  * Whether mode of transportation is allowed along the given OSM way as
  * indicated by its tags.
  */
 export function allowTravelMode(wayTags: TagMap, accessTypes: Tag[]): boolean {
-   let allow = true;
+   let allow = true
 
    forEach(accessTypes, tag => {
       if (tag in wayTags) {
-         const value = wayTags[tag];
-         allow = value === undefined || !noAccess.test(value);
+         const value = wayTags[tag]
+         allow = value === undefined || !noAccess.test(value)
       }
-   });
+   })
 
-   return allow;
+   return allow
 }
 
 /**
@@ -39,41 +39,40 @@ export function allowTravelMode(wayTags: TagMap, accessTypes: Tag[]): boolean {
  */
 export class Restrictions {
    /** Sequence of required node IDs keyed to node list patterns */
-   private required: Map<string, number[]>;
+   private required: Map<string, number[]>
    /** Node sequences forbidden by relation restrictions */
-   private forbidden: Set<string>;
-   private travelMode: string;
-   private config: RouteConfig;
+   private forbidden: Set<string>
+   private travelMode: string
+   private config: RouteConfig
 
    constructor(config: RouteConfig, travelMode: string) {
-      this.travelMode = travelMode;
-      this.config = config;
-      this.required = new Map();
-      this.forbidden = new Set();
+      this.travelMode = travelMode
+      this.config = config
+      this.required = new Map()
+      this.forbidden = new Set()
    }
 
    /**
     * Build restrictions from OSM relation members.
     */
    fromRelation(r: Relation) {
-      const restrictionType = this.getRestrictionType(r);
+      const restrictionType = this.getRestrictionType(r)
 
-      if (restrictionType === null) {
-         return;
-      }
-      const sequence = new Sequence(r);
+      if (restrictionType === null) return
+
+      const sequence = new Sequence(r)
 
       if (sequence.sort().valid) {
          if (forbidPrefix.test(restrictionType)) {
-            this.forbidden.add(sequence.allNodes.join(','));
+            this.forbidden.add(sequence.allNodes.join(','))
          } else if (requirePrefix.test(restrictionType)) {
             this.required.set(sequence.fromNodes.join(','), [
                ...sequence.viaNodes,
                sequence.toNode
-            ]);
+            ])
          }
       } else {
-         console.error(`Relation ${r.id} could not be processed`);
+         console.error(`Relation ${r.id} could not be processed`)
       }
    }
 
@@ -88,14 +87,12 @@ export class Restrictions {
     * @see https://www.measurethat.net/Benchmarks/Show/4797/1/js-regex-vs-startswith-vs-indexof
     */
    private getRestrictionType(r: Relation): string | null {
-      const exceptions = r.tags[Tag.Exception]?.split(';') ?? [];
+      const exceptions = r.tags[Tag.Exception]?.split(';') ?? []
 
-      if (intersects(exceptions, this.config.canUse)) {
-         // ignore restrictions if usable access is specifically exempted
-         return null;
-      }
+      // ignore restrictions if usable access is specifically exempted
+      if (intersects(exceptions, this.config.canUse)) return null
 
-      const travelModeRestriction = Tag.Restriction + ':' + this.travelMode;
+      const travelModeRestriction = Tag.Restriction + ':' + this.travelMode
 
       if (
          this.travelMode == TravelMode.Walk &&
@@ -103,35 +100,35 @@ export class Restrictions {
          !(travelModeRestriction in r.tags)
       ) {
          // ignore walking restrictions if not explicit
-         return null;
+         return null
       }
 
       /**
        * General restriction or restriction on specific mode of transportation
        */
       const restrictionType =
-         r.tags[travelModeRestriction] ?? r.tags[Tag.Restriction];
+         r.tags[travelModeRestriction] ?? r.tags[Tag.Restriction]
 
       if (restrictionType === undefined || !rulePrefix.test(restrictionType)) {
          // missing or inapplicable restriction type
-         return null;
+         return null
       }
 
-      return restrictionType;
+      return restrictionType
    }
 
    /**
     * Execute method for each forbidden pattern.
     */
    eachForbidden(fn: (pattern: string) => void) {
-      this.forbidden.forEach(fn);
+      this.forbidden.forEach(fn)
    }
 
    /**
     * Execute method for each mandatory pattern.
     */
    eachMandatory(fn: (nodes: number[], pattern: string) => void) {
-      this.required.forEach(fn);
+      this.required.forEach(fn)
    }
 
    /**
@@ -140,16 +137,14 @@ export class Restrictions {
     */
    forbids(nodes: number[]): boolean {
       /** Serialized list of route nodes */
-      const list = nodes.join(',');
-      let forbidden = false;
+      const list = nodes.join(',')
+      let forbidden = false
 
       this.forbidden.forEach(pattern => {
-         if (!forbidden && list.includes(pattern)) {
-            forbidden = true;
-         }
-      });
+         if (!forbidden && list.includes(pattern)) forbidden = true
+      })
 
-      return forbidden;
+      return forbidden
    }
 
    /**
@@ -158,17 +153,17 @@ export class Restrictions {
     * @param nodes Sequence of nodes after which the returned nodes are required
     */
    getRequired(nodes: number[]): number[] {
-      const list = nodes.join(',');
-      let required: number[] | undefined;
-      let found = false;
+      const list = nodes.join(',')
+      let required: number[] | undefined
+      let found = false
 
       this.required.forEach((requiredNodes, pattern) => {
          if (!found && list.endsWith(pattern)) {
-            required = requiredNodes;
-            found = true;
+            required = requiredNodes
+            found = true
          }
-      });
+      })
 
-      return required !== undefined ? required : [];
+      return required !== undefined ? required : []
    }
 }

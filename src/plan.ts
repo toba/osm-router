@@ -1,29 +1,29 @@
-import { measure } from '@toba/map';
-import { removeItem } from '@toba/tools';
-import { Node, Point, AreaData } from '@toba/osm-models';
-import { Status } from './types';
-import { Edges } from './edges';
-import { Restrictions } from './restriction';
-import { nextToLast } from './sequence';
-import { tiles } from './tile';
-import { RouteResult } from './router';
+import { measure } from '@toba/map'
+import { removeItem } from '@toba/tools'
+import { Node, Point, AreaData } from '@toba/osm-models'
+import { Status } from './types'
+import { Edges } from './edges'
+import { Restrictions } from './restriction'
+import { nextToLast } from './sequence'
+import { tiles } from './tile'
+import { RouteResult } from './router'
 
 export interface Route {
    /** Sequence of node IDs leading to `endNode` */
-   nodes: number[];
+   nodes: number[]
    /** Cost of connecting start and end nodes based on road type weighting */
-   cost: number;
-   heuristicCost: number;
+   cost: number
+   heuristicCost: number
    /**
     * IDs of nodes that *must* be traversed in this plan, derived from `only_*`
     * OSM relations
     */
-   required: number[];
+   required: number[]
    /**
     * Rinal route node. This will not be the target end node until the route is
     * complete.
     */
-   endNode: number;
+   endNode: number
 }
 
 /**
@@ -35,15 +35,15 @@ const emptyRoute = (startNode: number): Route => ({
    nodes: [startNode],
    required: [],
    endNode: 0
-});
+})
 
 /**
  * Copy an existing route and extend it to include a new end node. This updates
  * node values but *not* costs.
  */
 const extendRoute = (r: Route, endNode: number): Route => {
-   const nodes = r.nodes.slice();
-   nodes.push(endNode);
+   const nodes = r.nodes.slice()
+   nodes.push(endNode)
 
    return {
       cost: r.cost,
@@ -51,8 +51,8 @@ const extendRoute = (r: Route, endNode: number): Route => {
       nodes,
       required: r.required.slice(),
       endNode
-   };
-};
+   }
+}
 
 /**
  * Route planner.
@@ -60,23 +60,23 @@ const extendRoute = (r: Route, endNode: number): Route => {
  * @see https://arxiv.org/ftp/arxiv/papers/1212/1212.6055.pdf
  */
 export class Plan {
-   edges: Edges;
-   private rules: Restrictions;
+   edges: Edges
+   private rules: Restrictions
    /** All known OSM nodes keyed to their ID */
-   private nodes: Map<number, Node>;
+   private nodes: Map<number, Node>
    /**
     * Routes between start and end sorted by cost so `.pop()` always returns
     * the lowest cost plan
     */
-   private routes: Route[];
+   private routes: Route[]
    /** Node IDs with links that have all been evaluated */
-   private known: Set<number>;
+   private known: Set<number>
    /** OSM node that valid routes must reach */
-   private endNode: number;
+   private endNode: number
    /** Latitude/longitude of target route node */
-   endPoint: Point;
+   endPoint: Point
    /** Method to call when new tile data are loaded */
-   private onLoad?: (t: AreaData) => void;
+   private onLoad?: (t: AreaData) => void
 
    constructor(
       nodes: Map<number, Node>,
@@ -84,10 +84,10 @@ export class Plan {
       rules: Restrictions,
       onLoad?: (t: AreaData) => void
    ) {
-      this.edges = edges;
-      this.rules = rules;
-      this.nodes = nodes;
-      this.onLoad = onLoad;
+      this.edges = edges
+      this.rules = rules
+      this.nodes = nodes
+      this.onLoad = onLoad
    }
 
    /**
@@ -102,15 +102,15 @@ export class Plan {
     * @returns Whether start and end points are valid
     */
    async prepare(startNode: number, endNode: number): Promise<boolean> {
-      this.edges.ensure(startNode);
+      this.edges.ensure(startNode)
 
       if (startNode == endNode) {
-         return false;
+         return false
       }
-      this.known = new Set([startNode]);
-      this.routes = [];
-      this.endNode = endNode;
-      this.endPoint = this.nodes.get(endNode)!.point();
+      this.known = new Set([startNode])
+      this.routes = []
+      this.endNode = endNode
+      this.endPoint = this.nodes.get(endNode)!.point()
 
       return Promise.all(
          this.edges.map(startNode, (weight, linkedNode) =>
@@ -118,12 +118,12 @@ export class Plan {
          )
       )
          .then(() => true)
-         .catch(() => false);
+         .catch(() => false)
    }
 
    /** Number of route plans */
    get length() {
-      return this.routes.length;
+      return this.routes.length
    }
 
    /**
@@ -131,7 +131,7 @@ export class Plan {
     */
    private async ensureData(p: Point) {
       if (!(await tiles.ensure(p[0], p[1], this.onLoad))) {
-         throw new Error(`Unable to load data for point ${p}`);
+         throw new Error(`Unable to load data for point ${p}`)
       }
    }
 
@@ -139,43 +139,40 @@ export class Plan {
     * Whether nodes with IDs have been cached.
     */
    private hasNodes = (...nodes: number[]): boolean =>
-      nodes.findIndex(n => !this.nodes.has(n)) == -1;
+      nodes.findIndex(n => !this.nodes.has(n)) == -1
 
    /**
     * Find lowest cost option to reach end node within maximum iterations.
     * @param max Maximum number of route iterations to try before giving up
     */
    async find(max: number): Promise<RouteResult> {
-      let count = 0;
+      let count = 0
 
       while (count < max) {
-         if (this.length == 0) {
-            // exhausted options without finding way to end
-            return { status: Status.NoRoute };
-         }
-         count++;
+         // exhausted options without finding way to end
+         if (this.length == 0) return { status: Status.NoRoute }
+
+         count++
 
          /** Potential route to evaluate */
-         const route = this.routes.pop()!;
+         const route = this.routes.pop()!
          /** Final node ID of current route */
-         const toNode = route.endNode;
+         const toNode = route.endNode
          /** Whether all `toNode` connections have been evaluated */
-         let evaluated = true;
+         let evaluated = true
 
-         if (this.known.has(toNode)) {
-            // node was already explored
-            continue;
-         }
+         // node was already explored
+         if (this.known.has(toNode)) continue
 
          if (toNode == this.endNode) {
-            return { status: Status.Success, nodes: route.nodes.slice() };
+            return { status: Status.Success, nodes: route.nodes.slice() }
          }
 
          if (route.required.length > 0) {
             // traverse mandatory nodes
-            evaluated = false;
+            evaluated = false
             /** Next required node */
-            const requiredNode = route.required.shift()!;
+            const requiredNode = route.required.shift()!
 
             if (this.edges.has(toNode, requiredNode)) {
                await this.add(
@@ -183,7 +180,7 @@ export class Plan {
                   requiredNode,
                   route,
                   this.edges.weight(toNode, requiredNode)
-               );
+               )
             }
          } else if (this.edges.has(toNode)) {
             const allAdded = await Promise.all(
@@ -192,20 +189,16 @@ export class Plan {
                      ? true
                      : this.add(toNode, nextNode, route, weight)
                )
-            );
-            if (allAdded.includes(false)) {
-               // toNode considered fully evaluated unless one of its
-               // connections (edges) couldn't be explored
-               evaluated = false;
-            }
+            )
+            // toNode considered fully evaluated unless one of its
+            // connections (edges) couldn't be explored
+            if (allAdded.includes(false)) evaluated = false
          }
 
-         if (evaluated) {
-            this.known.add(toNode);
-         }
+         if (evaluated) this.known.add(toNode)
       }
 
-      return { status: Status.GaveUp };
+      return { status: Status.GaveUp }
    }
 
    /**
@@ -227,53 +220,52 @@ export class Plan {
       ) {
          // ignore non-traversible route (weight 0), missing nodes and
          // reversal at node (i.e. a->b->a)
-         return true;
+         return true
       }
 
-      const route = extendRoute(soFar, toNode);
+      const route = extendRoute(soFar, toNode)
 
       if (this.rules.forbids(route.nodes)) {
-         return false;
+         return false
       }
 
-      const toPoint = this.nodes.get(toNode)!.point();
-      const fromPoint = this.nodes.get(fromNode)!.point();
+      const toPoint = this.nodes.get(toNode)!.point()
+      const fromPoint = this.nodes.get(fromNode)!.point()
 
-      route.cost += measure.distanceLatLon(fromPoint, toPoint) / weight;
+      route.cost += measure.distanceLatLon(fromPoint, toPoint) / weight
       route.heuristicCost =
-         route.cost + measure.distanceLatLon(toPoint, this.endPoint);
+         route.cost + measure.distanceLatLon(toPoint, this.endPoint)
 
       /** Existing route that already connects with `toNode` */
-      const existingRoute = this.routes.find(p => p.endNode == toNode);
+      const existingRoute = this.routes.find(p => p.endNode == toNode)
 
       if (existingRoute !== undefined) {
-         if (existingRoute.cost < route.cost) {
-            // if a cheaper route already exists then do not create this route
-            return true;
-         }
+         // if a cheaper route already exists then do not create this route
+         if (existingRoute.cost < route.cost) return true
+
          // if existing route is more expensive then remove it and continue
          // creating new route
-         this.remove(existingRoute);
+         this.remove(existingRoute)
       }
 
-      await this.ensureData(toPoint);
+      await this.ensureData(toPoint)
 
       /** Whether all `toNode` connections have been evaluated */
-      let evaluated = true;
+      let evaluated = true
 
       if (route.required.length == 0) {
-         const required = this.rules.getRequired(route.nodes);
+         const required = this.rules.getRequired(route.nodes)
 
          if (required.length > 0) {
-            route.required = required;
-            evaluated = false;
+            route.required = required
+            evaluated = false
          }
       }
 
-      this.routes.push(route);
-      this.sort();
+      this.routes.push(route)
+      this.sort()
 
-      return evaluated;
+      return evaluated
    }
 
    /**
@@ -282,10 +274,10 @@ export class Plan {
    private sort = () =>
       this.routes.sort(
          (r1: Route, r2: Route) => r2.heuristicCost - r1.heuristicCost
-      );
+      )
 
    /**
     * Remove routing option.
     */
-   private remove = (item: Route) => removeItem(this.routes, item);
+   private remove = (item: Route) => removeItem(this.routes, item)
 }

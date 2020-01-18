@@ -1,32 +1,32 @@
-import '@toba/test';
-import { TravelMode, Point } from '@toba/osm-models';
-import { Status } from './types';
-import { Router } from './router';
-import { sampleData } from './__mocks__';
+import '@toba/test'
+import { TravelMode, Point } from '@toba/osm-models'
+import { Status } from './types'
+import { Router } from './router'
+import { sampleData } from './__mocks__'
 
-const carRoute = new Router(TravelMode.Car);
-const busRoute = new Router(TravelMode.Bus);
-const p1 = [53.7926757, 21.5732485] as Point;
-const p2 = [53.799199, 21.5726826] as Point;
+const carRoute = new Router(TravelMode.Car)
+const busRoute = new Router(TravelMode.Bus)
+const p1 = [53.7926757, 21.5732485] as Point
+const p2 = [53.799199, 21.5726826] as Point
 
 beforeAll(async () => {
-   const osm = await sampleData();
-   carRoute.addData(osm);
-   busRoute.addData(osm);
-});
+   const osm = await sampleData()
+   carRoute.addData(osm)
+   busRoute.addData(osm)
+})
 
 it('finds node nearest to coordinates', async () => {
-   expect(await carRoute.nearestNode(...p1)).toBe(-102562);
-   expect(await carRoute.nearestNode(...p2)).toBe(-102326);
+   expect(await carRoute.nearestNode(...p1)).toBe(-102562)
+   expect(await carRoute.nearestNode(...p2)).toBe(-102326)
 
-   expect(await busRoute.nearestNode(...p1)).toBe(-102604);
-   expect(await busRoute.nearestNode(...p2)).toBe(-102326);
-});
+   expect(await busRoute.nearestNode(...p1)).toBe(-102604)
+   expect(await busRoute.nearestNode(...p2)).toBe(-102326)
+})
 
 it('finds correct car route', async () => {
-   const found = await carRoute.find(p1, p2);
+   const found = await carRoute.find(p1, p2)
 
-   expect(found.status).toBe(Status.Success);
+   expect(found.status).toBe(Status.Success)
    // prettier-ignore
    expect(found.nodes).toEqual([
       -102562, -102564, -102566, -102612, -102592, -102590, -102588, -102586,
@@ -39,12 +39,12 @@ it('finds correct car route', async () => {
       -102242, -102244, -102246, -102248, -102250, -102252, -102254, -102256,
       -102258, -102260, -102262, -102264, -102324, -102326
    ]);
-});
+})
 
 it('finds correct bus route', async () => {
-   const found = await busRoute.find(p1, p2);
+   const found = await busRoute.find(p1, p2)
 
-   expect(found.status).toBe(Status.Success);
+   expect(found.status).toBe(Status.Success)
    // prettier-ignore
    expect(found.nodes).toEqual([
       -102604, -102606, -102608, -102610, -102612, -102566, -102564, -102562,
@@ -56,13 +56,13 @@ it('finds correct bus route', async () => {
       -102344, -102342, -102238, -102240, -102242, -102244, -102246, -102248,
       -102250, -102252, -102254, -102256, -102258, -102260, -102262, -102264,
       -102324, -102326
-   ]);
-});
+   ])
+})
 
 it('finds correct reverse car route', async () => {
-   const found = await carRoute.find(p2, p1);
+   const found = await carRoute.find(p2, p1)
 
-   expect(found.status).toBe(Status.Success);
+   expect(found.status).toBe(Status.Success)
    // prettier-ignore
    expect(found.nodes).toEqual([
       -102326, -102324, -102264, -102266, -102322, -102306, -102308, -102310,
@@ -76,13 +76,13 @@ it('finds correct reverse car route', async () => {
       -102458, -102460, -102462, -102464, -102466, -102468, -102470, -102570,
       -102572, -102574, -102576, -102578, -102580, -102582, -102584, -102586,
       -102588, -102590, -102592, -102612, -102566, -102564, -102562
-   ]);
-});
+   ])
+})
 
 it('finds correct reverse bus route', async () => {
-   const found = await busRoute.find(p2, p1);
+   const found = await busRoute.find(p2, p1)
 
-   expect(found.status).toBe(Status.Success);
+   expect(found.status).toBe(Status.Success)
    // prettier-ignore
    expect(found.nodes).toEqual([
       -102326, -102324, -102264, -102262, -102260, -102258, -102256, -102254,
@@ -92,5 +92,5 @@ it('finds correct reverse bus route', async () => {
       -102426, -102428, -102430, -102432, -102434, -102436, -102438, -102440,
       -102542, -102544, -102546, -102548, -102550, -102552, -102554, -102556,
       -102558, -102560, -102594, -102596, -102598, -102600, -102602, -102604
-   ]);
-});
+   ])
+})

@@ -1,18 +1,18 @@
-import { reverse } from '@toba/node-tools';
-import { Node, Relation, Role } from '@toba/osm-models';
+import { reverse } from '@toba/node-tools'
+import { Node, Relation, Role } from '@toba/osm-models'
 
 export const sharedNode = <T>(nodes1: T[], nodes2: T[]) =>
-   nodes1.find(n => nodes2.includes(n));
+   nodes1.find(n => nodes2.includes(n))
 
 /**
  * List item immediately before last item if length is at least 2, otherwise
  * the last item.
  */
 export const nextToLast = <T>(nodes: T[]): T =>
-   nodes[nodes.length - (nodes.length > 1 ? 2 : 1)];
+   nodes[nodes.length - (nodes.length > 1 ? 2 : 1)]
 
 /** Last list item. */
-export const last = <T>(nodes: T[]): T => nodes[nodes.length - 1];
+export const last = <T>(nodes: T[]): T => nodes[nodes.length - 1]
 
 /**
  * Sort node sets so shared nodes are adjacent.
@@ -22,32 +22,30 @@ export const last = <T>(nodes: T[]): T => nodes[nodes.length - 1];
 export function sortNodeSets(nodes: Node[][]): boolean {
    for (let i = 0, j = 1; i < nodes.length - 1; i++, j++) {
       /** Node that both groups have in common */
-      const common = sharedNode(nodes[i], nodes[j]);
+      const common = sharedNode(nodes[i], nodes[j])
 
       if (common === undefined) {
-         console.error('No common node connecting relation members');
-         return false;
+         console.error('No common node connecting relation members')
+         return false
       }
       /** Last index of first group */
-      const lastIndex = nodes[i].length - 1;
+      const lastIndex = nodes[i].length - 1
 
-      if (nodes[j][0] !== common) {
-         // reverse if first node of second group isn't the common node
-         nodes[j] = reverse(nodes[j]);
-      }
+      // reverse if first node of second group isn't the common node
+      if (nodes[j][0] !== common) nodes[j] = reverse(nodes[j])
 
       if (i == 0 && nodes[i][lastIndex] !== common) {
          // only the "from" way can be reversed while ordering the nodes,
          // otherwise, the x way could be reversed twice (as member[x] and member[x+1])
-         nodes[i] = reverse(nodes[i]);
+         nodes[i] = reverse(nodes[i])
       }
 
       if (nodes[i][lastIndex] !== nodes[j][0]) {
-         console.error('Relation member common nodes are not adjacent');
-         return false;
+         console.error('Relation member common nodes are not adjacent')
+         return false
       }
    }
-   return true;
+   return true
 }
 
 /**
@@ -55,23 +53,23 @@ export function sortNodeSets(nodes: Node[][]): boolean {
  * one `from` and `to` set but multiple `via` sets are allowed.
  */
 export class Sequence {
-   private nodes: Node[][];
+   private nodes: Node[][]
    /** Whether node sets could be sorted so all shared nodes are adjacent */
-   valid = false;
+   valid = false
 
    constructor(r: Relation) {
-      const from = r.members.find(m => m.role == Role.From);
-      const to = r.members.find(m => m.role == Role.To);
+      const from = r.members.find(m => m.role == Role.From)
+      const to = r.members.find(m => m.role == Role.To)
 
       if (from !== undefined && to !== undefined) {
-         this.valid = true;
-         this.nodes = [from.nodes];
+         this.valid = true
+         this.nodes = [from.nodes]
 
          r.members
             .filter(m => m.role == Role.Via)
-            .forEach(m => this.nodes.push(m.nodes));
+            .forEach(m => this.nodes.push(m.nodes))
 
-         this.nodes.push(to.nodes);
+         this.nodes.push(to.nodes)
       }
    }
 
@@ -80,21 +78,21 @@ export class Sequence {
     * relation "from" member and the first "via" node.
     */
    get fromNodes(): [number, number] {
-      return [nextToLast(this.nodes[0]).id, this.nodes[1][0].id];
+      return [nextToLast(this.nodes[0]).id, this.nodes[1][0].id]
    }
 
    /**
     * Number of node sets.
     */
    get length() {
-      return this.nodes.length;
+      return this.nodes.length
    }
 
    /**
     * Nodes from all sets flattened into single unique list.
     */
    get allNodes(): number[] {
-      return [...this.fromNodes, ...this.viaNodes, this.toNode];
+      return [...this.fromNodes, ...this.viaNodes, this.toNode]
    }
 
    /**
@@ -102,23 +100,23 @@ export class Sequence {
     * common IDs connecting the sets.
     */
    get viaNodes(): number[] {
-      const via: number[] = [];
+      const via: number[] = []
 
       for (let i = 1; i < this.length - 1; i++) {
          // skip first group since it was the "from" group
          for (let j = 1; j < this.nodes[i].length; j++) {
             // skip first node since that should be duplicate connector
-            via.push(this.nodes[i][j].id);
+            via.push(this.nodes[i][j].id)
          }
       }
-      return via;
+      return via
    }
 
    /**
     * First unique node ID at destination.
     */
    get toNode(): number {
-      return last(this.nodes)[1].id;
+      return last(this.nodes)[1].id
    }
 
    /**
@@ -126,9 +124,7 @@ export class Sequence {
     * @example [[a, b], [b, c], [c], [c, d, e], [e, f]]
     */
    sort(): this {
-      if (this.valid) {
-         this.valid = sortNodeSets(this.nodes);
-      }
-      return this;
+      if (this.valid) this.valid = sortNodeSets(this.nodes)
+      return this
    }
 }

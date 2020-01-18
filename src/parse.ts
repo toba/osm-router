@@ -1,4 +1,4 @@
-import { forEach } from '@toba/node-tools';
+import { forEach } from '@toba/node-tools'
 import {
    Node,
    Way,
@@ -9,43 +9,43 @@ import {
    WayType,
    ItemType,
    Tag
-} from '@toba/osm-models';
-import transform from 'camaro';
+} from '@toba/osm-models'
+import transform from 'camaro'
 
 interface ItemXML {
-   id: number;
-   visible?: boolean;
-   tags: TagXML[];
+   id: number
+   visible?: boolean
+   tags: TagXML[]
 }
 
 interface TagXML {
-   key: string;
-   value: string;
+   key: string
+   value: string
 }
 
 interface NodeXML extends ItemXML {
-   lat: number;
-   lon: number;
+   lat: number
+   lon: number
 }
 
 interface WayXML extends ItemXML {
-   nodes: number[];
+   nodes: number[]
 }
 
 interface MemberXML {
-   type: string;
-   ref: number;
-   role: string;
+   type: string
+   ref: number
+   role: string
 }
 
 interface RelationXML extends ItemXML {
-   members: MemberXML[];
+   members: MemberXML[]
 }
 
 interface OsmXML {
-   nodes: NodeXML[];
-   ways: WayXML[];
-   relations: RelationXML[];
+   nodes: NodeXML[]
+   ways: WayXML[]
+   relations: RelationXML[]
 }
 
 /* eslint-disable @typescript-eslint/camelcase */
@@ -58,10 +58,10 @@ const wayTypeSynonyms: { [key: string]: string } = {
    minor: WayType.Minor,
    pedestrian: WayType.FootPath,
    platform: WayType.FootPath
-};
+}
 
 function point(this: Node): [number, number] {
-   return [this.lat, this.lon];
+   return [this.lat, this.lon]
 }
 
 /**
@@ -74,23 +74,23 @@ export const addTags = <T extends OsmElement>(
    synonyms: { [alt: string]: string } = {}
 ): T => {
    if (tags !== undefined && tags.length > 0) {
-      const out = new Object(null) as { [key: string]: string | undefined };
+      const out = new Object(null) as { [key: string]: string | undefined }
 
       forEach(tags, t => {
-         out[t.key] = synonyms[t.value] ?? t.value;
-      });
-      item.tags = out;
+         out[t.key] = synonyms[t.value] ?? t.value
+      })
+      item.tags = out
    }
-   return item as T;
-};
+   return item as T
+}
 
 /**
  * Optimize OSM XML object for subsequent operations.
  * @param xml Pre-parsed object having the shape of OSM XML
  */
 export function normalizeOsmXML(xml: OsmXML): AreaData {
-   const nodes = new Map<number, Node>();
-   const ways = new Map<number, Way>();
+   const nodes = new Map<number, Node>()
+   const ways = new Map<number, Way>()
 
    forEach(xml.nodes, n =>
       nodes.set(
@@ -102,7 +102,7 @@ export function normalizeOsmXML(xml: OsmXML): AreaData {
             point
          })
       )
-   );
+   )
 
    forEach(xml.ways, w =>
       ways.set(
@@ -118,7 +118,7 @@ export function normalizeOsmXML(xml: OsmXML): AreaData {
             wayTypeSynonyms
          )
       )
-   );
+   )
 
    const relations: Relation[] = xml.relations.map(r =>
       addTags<Relation>(r.tags, {
@@ -133,13 +133,13 @@ export function normalizeOsmXML(xml: OsmXML): AreaData {
                   : []
          }))
       })
-   );
+   )
 
    return {
       nodes,
       ways,
       relations
-   };
+   }
 }
 
 /**
@@ -195,7 +195,7 @@ export function parseOsmXML(xmlText: string): AreaData {
             ]
          }
       ]
-   };
+   }
 
-   return normalizeOsmXML(transform(xmlText, template) as OsmXML);
+   return normalizeOsmXML(transform(xmlText, template) as OsmXML)
 }

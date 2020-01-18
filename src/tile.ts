@@ -1,40 +1,40 @@
-import 'whatwg-fetch';
-import fs from 'fs';
-import path from 'path';
-import { measure } from '@toba/map';
-import { ensureAllExist, writeFile } from '@toba/node-tools';
-import { Point, BoundingBox, AreaData } from '@toba/osm-models';
-import { parseOsmXML } from './parse';
+import 'whatwg-fetch'
+import fs from 'fs'
+import path from 'path'
+import { measure } from '@toba/map'
+import { ensureAllExist, writeFile } from '@toba/node-tools'
+import { Point, BoundingBox, AreaData } from '@toba/osm-models'
+import { parseOsmXML } from './parse'
 
-const ext = 'osm';
-const defaultZoom = 15;
+const ext = 'osm'
+const defaultZoom = 15
 /** Cache names of downloaded tile data to short-circuit file system checks */
-const downloadedTiles = new Set<string>();
-let dataPath = path.join(__dirname, '..', 'temp');
+const downloadedTiles = new Set<string>()
+let dataPath = path.join(__dirname, '..', 'temp')
 /** Whether to fetch tile data if not cached */
-let fetchIfMissing = true;
+let fetchIfMissing = true
 
-let cacheSeconds = 30;
+let cacheSeconds = 30
 
-const tilesForZoom = (z: number) => 2 ** z;
-const secant = (x: number) => 1.0 / Math.cos(x);
-const mercToLat = (x: number) => measure.toDegrees(Math.atan(Math.sinh(x)));
+const tilesForZoom = (z: number) => 2 ** z
+const secant = (x: number) => 1.0 / Math.cos(x)
+const mercToLat = (x: number) => measure.toDegrees(Math.atan(Math.sinh(x)))
 
 /**
  * @see https://wiki.openstreetmap.org/wiki/Mercator#ActionScript_and_JavaScript
  */
 function pointToPosition(p: Point) {
-   const [lat, lon] = p;
-   const radLat = measure.toRadians(lat);
-   const x = (lon + 180) / 360;
-   const y = (1 - Math.log(Math.tan(radLat) + secant(radLat)) / Math.PI) / 2;
-   return [x, y];
+   const [lat, lon] = p
+   const radLat = measure.toRadians(lat)
+   const x = (lon + 180) / 360
+   const y = (1 - Math.log(Math.tan(radLat) + secant(radLat)) / Math.PI) / 2
+   return [x, y]
 }
 
 export function tilePosition(p: Point, zoom: number = defaultZoom) {
-   const n = tilesForZoom(zoom);
-   const [x, y] = pointToPosition(p);
-   return [Math.trunc(n * x), Math.trunc(n * y)];
+   const n = tilesForZoom(zoom)
+   const [x, y] = pointToPosition(p)
+   return [Math.trunc(n * x), Math.trunc(n * y)]
 }
 
 /**
@@ -44,9 +44,9 @@ export function tilePosition(p: Point, zoom: number = defaultZoom) {
 const fileAge = (path: string): Promise<number> =>
    new Promise<number>(resolve =>
       fs.stat(path, (err, stats) => {
-         resolve(err === null ? stats.mtimeMs : -Infinity);
+         resolve(err === null ? stats.mtimeMs : -Infinity)
       })
-   );
+   )
 
 /**
  * Calculate left, bottom, right and top for tile.
@@ -60,13 +60,13 @@ export function tileBoundary(
    y: number,
    zoom: number = defaultZoom
 ): BoundingBox {
-   const n = tilesForZoom(zoom);
-   const top = mercToLat(Math.PI * (1 - 2 * (y * (1 / n))));
-   const bottom = mercToLat(Math.PI * (1 - 2 * ((y + 1) * (1 / n))));
-   const left = x * (360 / n) - 180;
-   const right = left + 360 / n;
+   const n = tilesForZoom(zoom)
+   const top = mercToLat(Math.PI * (1 - 2 * (y * (1 / n))))
+   const bottom = mercToLat(Math.PI * (1 - 2 * ((y + 1) * (1 / n))))
+   const left = x * (360 / n) - 180
+   const right = left + 360 / n
 
-   return [left, bottom, right, top];
+   return [left, bottom, right, top]
 }
 
 /**
@@ -83,25 +83,25 @@ async function downloadInBoundary(
    y: number,
    onLoad?: (t: AreaData) => void
 ): Promise<boolean> {
-   const [left, bottom, right, top] = tileBoundary(x, y);
+   const [left, bottom, right, top] = tileBoundary(x, y)
 
    try {
       const res = await fetch(
          `https://api.openstreetmap.org/api/0.6/map?bbox=${left},${bottom},${right},${top}`
-      );
-      const text = await res.text();
+      )
+      const text = await res.text()
 
-      await writeFile(fileName, text, folder, ext);
+      await writeFile(fileName, text, folder, ext)
 
       if (onLoad !== undefined) {
-         onLoad(parseOsmXML(text));
+         onLoad(parseOsmXML(text))
       }
    } catch (e) {
       // called methods should already have logged message
-      downloadedTiles.delete(fileName);
-      return false;
+      downloadedTiles.delete(fileName)
+      return false
    }
-   return true;
+   return true
 }
 
 /**
@@ -114,28 +114,28 @@ async function ensureTiles(
    onLoad?: (t: AreaData) => void
 ): Promise<boolean> {
    if (!fetchIfMissing) {
-      return true;
+      return true
    }
-   const [x, y] = tilePosition([lat, lon]);
-   const name = `${x},${y}`;
+   const [x, y] = tilePosition([lat, lon])
+   const name = `${x},${y}`
 
    if (downloadedTiles.has(name)) {
-      return true;
+      return true
    }
 
-   downloadedTiles.add(name);
+   downloadedTiles.add(name)
 
-   const folder = path.join(dataPath, 'tiles');
-   const filePath = path.join(folder, `${name}.${ext}`);
+   const folder = path.join(dataPath, 'tiles')
+   const filePath = path.join(folder, `${name}.${ext}`)
 
-   ensureAllExist(folder);
+   ensureAllExist(folder)
 
    /** Milliseconds since file was modified */
-   const age = new Date().getTime() - (await fileAge(filePath));
+   const age = new Date().getTime() - (await fileAge(filePath))
 
    return age > cacheSeconds * 1000
       ? downloadInBoundary(folder, name, x, y, onLoad)
-      : true;
+      : true
 }
 
 /**
@@ -147,34 +147,34 @@ export const tiles = {
     * Set absolute path where tile data should be saved.
     */
    set path(p: string) {
-      dataPath = p;
+      dataPath = p
    },
 
    /**
     * Whether to retrieve tile data if not found in cache.
     */
    set fetchIfMissing(v: boolean) {
-      fetchIfMissing = v;
+      fetchIfMissing = v
    },
 
    /**
     * Seconds to use downloaded tile data before replacing it.
     */
    set cacheSeconds(s: number) {
-      cacheSeconds = s;
+      cacheSeconds = s
    },
 
    /**
     * Minutes to use downloaded tile data before replacing it.
     */
    set cacheMinutes(m: number) {
-      this.cacheSeconds = m * 60;
+      this.cacheSeconds = m * 60
    },
 
    /**
     * Hours to use downloaded tile data before replacing it.
     */
    set cacheHours(h: number) {
-      this.cacheMinutes = h * 60;
+      this.cacheMinutes = h * 60
    }
-};
+}
