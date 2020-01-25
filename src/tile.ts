@@ -93,9 +93,7 @@ async function downloadInBoundary(
 
       await writeFile(fileName, text, folder, ext)
 
-      if (onLoad !== undefined) {
-         onLoad(parseOsmXML(text))
-      }
+      if (onLoad !== undefined) onLoad(parseOsmXML(text))
    } catch (e) {
       // called methods should already have logged message
       downloadedTiles.delete(fileName)
@@ -119,9 +117,7 @@ async function ensureTiles(
    const [x, y] = tilePosition([lat, lon])
    const name = `${x},${y}`
 
-   if (downloadedTiles.has(name)) {
-      return true
-   }
+   if (downloadedTiles.has(name)) return true
 
    downloadedTiles.add(name)
 

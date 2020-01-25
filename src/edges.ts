@@ -152,9 +152,7 @@ export class Edges {
     */
    each(nodeID: number, fn: (weight: number, toNode: number) => void) {
       const nodes = this.get(nodeID)
-      if (nodes === undefined) {
-         return
-      }
+      if (nodes === undefined) return
       nodes.forEach(fn)
    }
 

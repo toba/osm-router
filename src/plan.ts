@@ -104,9 +104,8 @@ export class Plan {
    async prepare(startNode: number, endNode: number): Promise<boolean> {
       this.edges.ensure(startNode)
 
-      if (startNode == endNode) {
-         return false
-      }
+      if (startNode == endNode) return false
+
       this.known = new Set([startNode])
       this.routes = []
       this.endNode = endNode
@@ -225,9 +224,7 @@ export class Plan {
 
       const route = extendRoute(soFar, toNode)
 
-      if (this.rules.forbids(route.nodes)) {
-         return false
-      }
+      if (this.rules.forbids(route.nodes)) return false
 
       const toPoint = this.nodes.get(toNode)!.point()
       const fromPoint = this.nodes.get(fromNode)!.point()
