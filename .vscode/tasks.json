@@ -2,9 +2,17 @@
    "version": "2.0.0",
    "tasks": [
       {
-         "label": "Test",
+         "label": "JS Test",
          "command": "./node_modules/.bin/jest",
          "args": ["--verbose"],
+         "type": "shell",
+         "group": "test",
+         "problemMatcher": []
+      },
+      {
+         "label": "Rust Test",
+         "command": "cargo",
+         "args": ["test"],
          "type": "shell",
          "group": "test",
          "problemMatcher": []

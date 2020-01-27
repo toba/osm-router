@@ -60,30 +60,22 @@ impl OSM {
                ElementData::Ignored => continue,
                ElementData::Bounds(minlat, minlon, maxlat, maxlon) => {
                   osm.bounds = Some(Bounds {
-                     minlat: minlat,
-                     minlon: minlon,
-                     maxlat: maxlat,
-                     maxlon: maxlon,
+                     minlat,
+                     minlon,
+                     maxlat,
+                     maxlon,
                   });
                }
                ElementData::Node(id, lat, lon, tags) => {
-                  osm.nodes.insert(
-                     id,
-                     Node {
-                        id: id,
-                        lat: lat,
-                        lon: lon,
-                        tags: tags,
-                     },
-                  );
+                  osm.nodes.insert(id, Node { id, lat, lon, tags });
                }
                ElementData::Way(id, node_refs, tags) => {
                   osm.ways.insert(
                      id,
                      Way {
-                        id: id,
+                        id,
                         nodes: node_refs,
-                        tags: tags,
+                        tags,
                      },
                   );
                }
@@ -95,7 +87,7 @@ impl OSM {
       }
    }
 
-   pub fn resolve_reference<'a>(&self, reference: &UnresolvedReference) -> Reference {
+   pub fn resolve_reference(&self, reference: &UnresolvedReference) -> Reference {
       match *reference {
          UnresolvedReference::Node(id) => self
             .nodes
@@ -177,7 +169,7 @@ fn parse_element_data<R: Read>(parser: &mut EventReader<R>) -> Result<ElementDat
 
 fn parse_relation<R: Read>(
    parser: &mut EventReader<R>,
-   attrs: &Vec<OwnedAttribute>,
+   attrs: &[OwnedAttribute],
 ) -> Result<ElementData, Error> {
    let id = find_attribute("id", attrs).map_err(Error::MalformedRelation)?;
 
@@ -191,11 +183,7 @@ fn parse_relation<R: Read>(
 
             match element_type {
                ElementType::Relation => {
-                  return Ok(ElementData::Relation(Relation {
-                     id: id,
-                     members: members,
-                     tags: tags,
-                  }))
+                  return Ok(ElementData::Relation(Relation { id, members, tags }))
                }
                _ => continue,
             }
@@ -244,7 +232,7 @@ fn parse_relation<R: Read>(
 
 fn parse_way<R: Read>(
    parser: &mut EventReader<R>,
-   attrs: &Vec<OwnedAttribute>,
+   attrs: &[OwnedAttribute],
 ) -> Result<ElementData, Error> {
    let id = find_attribute("id", attrs).map_err(Error::MalformedWay)?;
 
@@ -292,7 +280,7 @@ fn parse_way<R: Read>(
 
 fn parse_node<R: Read>(
    parser: &mut EventReader<R>,
-   attrs: &Vec<OwnedAttribute>,
+   attrs: &[OwnedAttribute],
 ) -> Result<ElementData, Error> {
    let id = find_attribute("id", attrs).map_err(Error::MalformedNode)?;
    let lat = find_attribute("lat", attrs).map_err(Error::MalformedNode)?;
@@ -336,13 +324,13 @@ fn parse_node<R: Read>(
    }
 }
 
-fn parse_tag(attributes: &Vec<OwnedAttribute>) -> Result<Tag, Error> {
+fn parse_tag(attributes: &[OwnedAttribute]) -> Result<Tag, Error> {
    let key = find_attribute_uncasted("k", attributes).map_err(Error::MalformedTag)?;
    let val = find_attribute_uncasted("v", attributes).map_err(Error::MalformedTag)?;
-   Ok(Tag { key: key, val: val })
+   Ok(Tag { key, val })
 }
 
-fn parse_bounds(attrs: &Vec<OwnedAttribute>) -> Result<ElementData, Error> {
+fn parse_bounds(attrs: &[OwnedAttribute]) -> Result<ElementData, Error> {
    let minlat = find_attribute("minlat", attrs).map_err(Error::BoundsMissing)?;
    let minlon = find_attribute("minlon", attrs).map_err(Error::BoundsMissing)?;
    let maxlat = find_attribute("maxlat", attrs).map_err(Error::BoundsMissing)?;
@@ -351,7 +339,7 @@ fn parse_bounds(attrs: &Vec<OwnedAttribute>) -> Result<ElementData, Error> {
    Ok(ElementData::Bounds(minlat, minlon, maxlat, maxlon))
 }
 
-fn find_attribute<T>(name: &str, attrs: &Vec<OwnedAttribute>) -> Result<T, ErrorReason>
+fn find_attribute<T>(name: &str, attrs: &[OwnedAttribute]) -> Result<T, ErrorReason>
 where
    ErrorReason: From<<T as std::str::FromStr>::Err>,
    T: FromStr,
@@ -361,7 +349,7 @@ where
    Ok(val)
 }
 
-fn find_attribute_uncasted(name: &str, attrs: &Vec<OwnedAttribute>) -> Result<String, ErrorReason> {
+fn find_attribute_uncasted(name: &str, attrs: &[OwnedAttribute]) -> Result<String, ErrorReason> {
    let attr = attrs.iter().find(|attr| attr.name.local_name == name);
    match attr {
       Some(a) => Ok(a.value.clone()),

@@ -1,3 +1,5 @@
+#![allow(clippy::unreadable_literal)]
+
 use osm::OSM;
 use std::fs::File;
 use toba_osm_router as osm;
