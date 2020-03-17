@@ -18,31 +18,31 @@ export interface RouteResult {
  * @see https://jakobmiksch.eu/post/openstreetmap_routing/
  */
 export class Router {
-   private plan: Plan
+   #plan: Plan
    /** Weighted connections between all nodes */
-   private edges: Edges
-   private rules: Restrictions
+   #edges: Edges
+   #rules: Restrictions
    /** All known OSM nodes keyed to their ID */
-   private nodes: Map<number, Node>
-   private travelMode: string
-   private config: RouteConfig
+   #nodes: Map<number, Node>
+   #travelMode: string
+   #config: RouteConfig
 
    constructor(
       configOrMode: RouteConfig | TravelMode,
       refreshDataAfterDays = 5
    ) {
-      this.nodes = new Map()
+      this.#nodes = new Map()
 
       if (is.object<RouteConfig>(configOrMode)) {
-         this.travelMode = configOrMode.name
-         this.config = clone(configOrMode)
+         this.#travelMode = configOrMode.name
+         this.#config = clone(configOrMode)
       } else {
-         this.travelMode = configOrMode
-         this.config = clone(preferences[this.travelMode])
+         this.#travelMode = configOrMode
+         this.#config = clone(preferences[this.#travelMode])
       }
 
-      this.edges = new Edges(this.config, this.travelMode)
-      this.rules = new Restrictions(this.config, this.travelMode)
+      this.#edges = new Edges(this.#config, this.#travelMode)
+      this.#rules = new Restrictions(this.#config, this.#travelMode)
 
       tiles.cacheHours = refreshDataAfterDays * 24
    }
@@ -50,10 +50,10 @@ export class Router {
    addData(area: AreaData) {
       area.ways.forEach(way => {
          // only cache nodes that are part of routable ways
-         const routableNodes = this.edges.fromWay(way)
-         forEach(routableNodes, n => this.nodes.set(n.id, n))
+         const routableNodes = this.#edges.fromWay(way)
+         forEach(routableNodes, n => this.#nodes.set(n.id, n))
       })
-      forEach(area.relations, r => this.rules.fromRelation(r))
+      forEach(area.relations, r => this.#rules.fromRelation(r))
    }
 
    private distance = (p1: Point, p2: Point) => measure.distanceLatLon(p1, p2)
@@ -69,7 +69,7 @@ export class Router {
       let foundDistance = Infinity
       let foundNode: number | null = null
 
-      this.nodes.forEach((node, nodeID) => {
+      this.#nodes.forEach((node, nodeID) => {
          const distance = this.distance(node.point(), [lat, lon])
 
          if (distance < foundDistance) {
@@ -101,11 +101,11 @@ export class Router {
     * @param endNode Node ID
     */
    async execute(startNode: number, endNode: number): Promise<RouteResult> {
-      if (this.plan === undefined) {
-         this.plan = new Plan(this.nodes, this.edges, this.rules)
+      if (this.#plan === undefined) {
+         this.#plan = new Plan(this.#nodes, this.#edges, this.#rules)
       }
-      const valid = await this.plan.prepare(startNode, endNode)
+      const valid = await this.#plan.prepare(startNode, endNode)
 
-      return valid ? this.plan.find(100000) : { status: Status.NoRoute }
+      return valid ? this.#plan.find(100000) : { status: Status.NoRoute }
    }
 }

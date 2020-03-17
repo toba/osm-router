@@ -14,7 +14,7 @@ it('calculates bounding box for OSM download', () => {
    const [x, y] = tilePosition(boise)
    expect(tileBoundary(x, y)).toEqual([
       -116.202392578125,
-      43.61221676817571,
+      43.61221676817573, // originally 43.61221676817571
       -116.19140625,
       43.6201706161899
    ])

@@ -53,7 +53,7 @@ export function sortNodeSets(nodes: Node[][]): boolean {
  * one `from` and `to` set but multiple `via` sets are allowed.
  */
 export class Sequence {
-   private nodes: Node[][]
+   #nodes: Node[][]
    /** Whether node sets could be sorted so all shared nodes are adjacent */
    valid = false
 
@@ -63,13 +63,13 @@ export class Sequence {
 
       if (from !== undefined && to !== undefined) {
          this.valid = true
-         this.nodes = [from.nodes]
+         this.#nodes = [from.nodes]
 
          r.members
             .filter(m => m.role == Role.Via)
-            .forEach(m => this.nodes.push(m.nodes))
+            .forEach(m => this.#nodes.push(m.nodes))
 
-         this.nodes.push(to.nodes)
+         this.#nodes.push(to.nodes)
       }
    }
 
@@ -78,14 +78,14 @@ export class Sequence {
     * relation "from" member and the first "via" node.
     */
    get fromNodes(): [number, number] {
-      return [nextToLast(this.nodes[0]).id, this.nodes[1][0].id]
+      return [nextToLast(this.#nodes[0]).id, this.#nodes[1][0].id]
    }
 
    /**
     * Number of node sets.
     */
    get length() {
-      return this.nodes.length
+      return this.#nodes.length
    }
 
    /**
@@ -104,9 +104,9 @@ export class Sequence {
 
       for (let i = 1; i < this.length - 1; i++) {
          // skip first group since it was the "from" group
-         for (let j = 1; j < this.nodes[i].length; j++) {
+         for (let j = 1; j < this.#nodes[i].length; j++) {
             // skip first node since that should be duplicate connector
-            via.push(this.nodes[i][j].id)
+            via.push(this.#nodes[i][j].id)
          }
       }
       return via
@@ -116,7 +116,7 @@ export class Sequence {
     * First unique node ID at destination.
     */
    get toNode(): number {
-      return last(this.nodes)[1].id
+      return last(this.#nodes)[1].id
    }
 
    /**
@@ -124,7 +124,7 @@ export class Sequence {
     * @example [[a, b], [b, c], [c], [c, d, e], [e, f]]
     */
    sort(): this {
-      if (this.valid) this.valid = sortNodeSets(this.nodes)
+      if (this.valid) this.valid = sortNodeSets(this.#nodes)
       return this
    }
 }

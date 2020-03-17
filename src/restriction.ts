@@ -39,17 +39,17 @@ export function allowTravelMode(wayTags: TagMap, accessTypes: Tag[]): boolean {
  */
 export class Restrictions {
    /** Sequence of required node IDs keyed to node list patterns */
-   private required: Map<string, number[]>
+   #required: Map<string, number[]>
    /** Node sequences forbidden by relation restrictions */
-   private forbidden: Set<string>
-   private travelMode: string
-   private config: RouteConfig
+   #forbidden: Set<string>
+   #travelMode: string
+   #config: RouteConfig
 
    constructor(config: RouteConfig, travelMode: string) {
-      this.travelMode = travelMode
-      this.config = config
-      this.required = new Map()
-      this.forbidden = new Set()
+      this.#travelMode = travelMode
+      this.#config = config
+      this.#required = new Map()
+      this.#forbidden = new Set()
    }
 
    /**
@@ -64,9 +64,9 @@ export class Restrictions {
 
       if (sequence.sort().valid) {
          if (forbidPrefix.test(restrictionType)) {
-            this.forbidden.add(sequence.allNodes.join(','))
+            this.#forbidden.add(sequence.allNodes.join(','))
          } else if (requirePrefix.test(restrictionType)) {
-            this.required.set(sequence.fromNodes.join(','), [
+            this.#required.set(sequence.fromNodes.join(','), [
                ...sequence.viaNodes,
                sequence.toNode
             ])
@@ -90,12 +90,12 @@ export class Restrictions {
       const exceptions = r.tags[Tag.Exception]?.split(';') ?? []
 
       // ignore restrictions if usable access is specifically exempted
-      if (intersects(exceptions, this.config.canUse)) return null
+      if (intersects(exceptions, this.#config.canUse)) return null
 
-      const travelModeRestriction = Tag.Restriction + ':' + this.travelMode
+      const travelModeRestriction = Tag.Restriction + ':' + this.#travelMode
 
       if (
-         this.travelMode == TravelMode.Walk &&
+         this.#travelMode == TravelMode.Walk &&
          r.tags[Tag.Type] != travelModeRestriction &&
          !(travelModeRestriction in r.tags)
       ) {
@@ -121,14 +121,14 @@ export class Restrictions {
     * Execute method for each forbidden pattern.
     */
    eachForbidden(fn: (pattern: string) => void) {
-      this.forbidden.forEach(fn)
+      this.#forbidden.forEach(fn)
    }
 
    /**
     * Execute method for each mandatory pattern.
     */
    eachMandatory(fn: (nodes: number[], pattern: string) => void) {
-      this.required.forEach(fn)
+      this.#required.forEach(fn)
    }
 
    /**
@@ -140,7 +140,7 @@ export class Restrictions {
       const list = nodes.join(',')
       let forbidden = false
 
-      this.forbidden.forEach(pattern => {
+      this.#forbidden.forEach(pattern => {
          if (!forbidden && list.includes(pattern)) forbidden = true
       })
 
@@ -157,7 +157,7 @@ export class Restrictions {
       let required: number[] | undefined
       let found = false
 
-      this.required.forEach((requiredNodes, pattern) => {
+      this.#required.forEach((requiredNodes, pattern) => {
          if (!found && list.endsWith(pattern)) {
             required = requiredNodes
             found = true

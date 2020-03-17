@@ -17,14 +17,14 @@ const isOneWay = /^(yes|true|1|-1|reverse)$/
  */
 export class Edges {
    /** Weights assigned to node-node connections based on `RouteConfig` */
-   private items: Map<number, Map<number, number>>
-   private travelMode: string
-   private config: RouteConfig
+   #items: Map<number, Map<number, number>>
+   #travelMode: string
+   #config: RouteConfig
 
    constructor(config: RouteConfig, travelMode: string) {
-      this.items = new Map()
-      this.travelMode = travelMode
-      this.config = config
+      this.#items = new Map()
+      this.#travelMode = travelMode
+      this.#config = config
    }
 
    /**
@@ -42,7 +42,7 @@ export class Edges {
     * Number of edges.
     */
    get length() {
-      return this.items.size
+      return this.#items.size
    }
 
    /**
@@ -74,27 +74,27 @@ export class Edges {
          }
 
          if (
-            this.travelMode == TravelMode.Walk ||
+            this.#travelMode == TravelMode.Walk ||
             (isOneWay.test(oneway) &&
-               way.tags[Tag.OneWay + ':' + this.travelMode] == 'no')
+               way.tags[Tag.OneWay + ':' + this.#travelMode] == 'no')
          ) {
             // disable one-way setting for foot traffic or explicit tag
             oneway = 'no'
          }
 
          if (roadType !== undefined) {
-            weight = this.config.weights[roadType] ?? cannotUse
+            weight = this.#config.weights[roadType] ?? cannotUse
          }
 
          if (railType !== undefined && weight == cannotUse) {
             // TODO: is this right? How can we arbitrarily switch to rail type?
             // see if there's another way
-            weight = this.config.weights[railType] ?? cannotUse
+            weight = this.#config.weights[railType] ?? cannotUse
          }
 
          if (
             weight <= cannotUse ||
-            !allowTravelMode(way.tags, this.config.canUse)
+            !allowTravelMode(way.tags, this.#config.canUse)
          ) {
             return []
          }
@@ -116,14 +116,14 @@ export class Edges {
    /**
     * Weighted nodes (IDs) connected to the given node.
     */
-   get = (node: number) => this.items.get(node)
+   get = (node: number) => this.#items.get(node)
 
    /**
     * Whether `from` node exists and, optionally, if it is connected to a `to`
     * node ID.
     */
    has(from: number, to?: number) {
-      const exists = this.items.has(from)
+      const exists = this.#items.has(from)
       return exists && to !== undefined ? this.get(from)!.has(to) : exists
    }
 
@@ -142,7 +142,7 @@ export class Edges {
 
       if (edge === undefined) {
          edge = new Map()
-         this.items.set(from.id, edge)
+         this.#items.set(from.id, edge)
       }
       edge.set(to.id, weight)
    }

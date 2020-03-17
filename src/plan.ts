@@ -61,22 +61,22 @@ const extendRoute = (r: Route, endNode: number): Route => {
  */
 export class Plan {
    edges: Edges
-   private rules: Restrictions
+   #rules: Restrictions
    /** All known OSM nodes keyed to their ID */
-   private nodes: Map<number, Node>
+   #nodes: Map<number, Node>
    /**
     * Routes between start and end sorted by cost so `.pop()` always returns
     * the lowest cost plan
     */
-   private routes: Route[]
+   #routes: Route[]
    /** Node IDs with links that have all been evaluated */
-   private known: Set<number>
+   #known: Set<number>
    /** OSM node that valid routes must reach */
-   private endNode: number
+   #endNode: number
    /** Latitude/longitude of target route node */
    endPoint: Point
    /** Method to call when new tile data are loaded */
-   private onLoad?: (t: AreaData) => void
+   #onLoad?: (t: AreaData) => void
 
    constructor(
       nodes: Map<number, Node>,
@@ -85,9 +85,9 @@ export class Plan {
       onLoad?: (t: AreaData) => void
    ) {
       this.edges = edges
-      this.rules = rules
-      this.nodes = nodes
-      this.onLoad = onLoad
+      this.#rules = rules
+      this.#nodes = nodes
+      this.#onLoad = onLoad
    }
 
    /**
@@ -106,10 +106,10 @@ export class Plan {
 
       if (startNode == endNode) return false
 
-      this.known = new Set([startNode])
-      this.routes = []
-      this.endNode = endNode
-      this.endPoint = this.nodes.get(endNode)!.point()
+      this.#known = new Set([startNode])
+      this.#routes = []
+      this.#endNode = endNode
+      this.endPoint = this.#nodes.get(endNode)!.point()
 
       return Promise.all(
          this.edges.map(startNode, (weight, linkedNode) =>
@@ -122,14 +122,14 @@ export class Plan {
 
    /** Number of route plans */
    get length() {
-      return this.routes.length
+      return this.#routes.length
    }
 
    /**
     * Ensure OSM node and way data are loaded for a coordinate.
     */
    private async ensureData(p: Point) {
-      if (!(await tiles.ensure(p[0], p[1], this.onLoad))) {
+      if (!(await tiles.ensure(p[0], p[1], this.#onLoad))) {
          throw new Error(`Unable to load data for point ${p}`)
       }
    }
@@ -138,7 +138,7 @@ export class Plan {
     * Whether nodes with IDs have been cached.
     */
    private hasNodes = (...nodes: number[]): boolean =>
-      nodes.findIndex(n => !this.nodes.has(n)) == -1
+      nodes.findIndex(n => !this.#nodes.has(n)) == -1
 
    /**
     * Find lowest cost option to reach end node within maximum iterations.
@@ -154,16 +154,16 @@ export class Plan {
          count++
 
          /** Potential route to evaluate */
-         const route = this.routes.pop()!
+         const route = this.#routes.pop()!
          /** Final node ID of current route */
          const toNode = route.endNode
          /** Whether all `toNode` connections have been evaluated */
          let evaluated = true
 
          // node was already explored
-         if (this.known.has(toNode)) continue
+         if (this.#known.has(toNode)) continue
 
-         if (toNode == this.endNode) {
+         if (toNode == this.#endNode) {
             return { status: Status.Success, nodes: route.nodes.slice() }
          }
 
@@ -184,7 +184,7 @@ export class Plan {
          } else if (this.edges.has(toNode)) {
             const allAdded = await Promise.all(
                this.edges.map(toNode, async (weight, nextNode) =>
-                  this.known.has(nextNode)
+                  this.#known.has(nextNode)
                      ? true
                      : this.add(toNode, nextNode, route, weight)
                )
@@ -194,7 +194,7 @@ export class Plan {
             if (allAdded.includes(false)) evaluated = false
          }
 
-         if (evaluated) this.known.add(toNode)
+         if (evaluated) this.#known.add(toNode)
       }
 
       return { status: Status.GaveUp }
@@ -224,17 +224,17 @@ export class Plan {
 
       const route = extendRoute(soFar, toNode)
 
-      if (this.rules.forbids(route.nodes)) return false
+      if (this.#rules.forbids(route.nodes)) return false
 
-      const toPoint = this.nodes.get(toNode)!.point()
-      const fromPoint = this.nodes.get(fromNode)!.point()
+      const toPoint = this.#nodes.get(toNode)!.point()
+      const fromPoint = this.#nodes.get(fromNode)!.point()
 
       route.cost += measure.distanceLatLon(fromPoint, toPoint) / weight
       route.heuristicCost =
          route.cost + measure.distanceLatLon(toPoint, this.endPoint)
 
       /** Existing route that already connects with `toNode` */
-      const existingRoute = this.routes.find(p => p.endNode == toNode)
+      const existingRoute = this.#routes.find(p => p.endNode == toNode)
 
       if (existingRoute !== undefined) {
          // if a cheaper route already exists then do not create this route
@@ -251,7 +251,7 @@ export class Plan {
       let evaluated = true
 
       if (route.required.length == 0) {
-         const required = this.rules.getRequired(route.nodes)
+         const required = this.#rules.getRequired(route.nodes)
 
          if (required.length > 0) {
             route.required = required
@@ -259,7 +259,7 @@ export class Plan {
          }
       }
 
-      this.routes.push(route)
+      this.#routes.push(route)
       this.sort()
 
       return evaluated
@@ -269,12 +269,12 @@ export class Plan {
     * Sort route plans in order of cost.
     */
    private sort = () =>
-      this.routes.sort(
+      this.#routes.sort(
          (r1: Route, r2: Route) => r2.heuristicCost - r1.heuristicCost
       )
 
    /**
     * Remove routing option.
     */
-   private remove = (item: Route) => removeItem(this.routes, item)
+   private remove = (item: Route) => removeItem(this.#routes, item)
 }
