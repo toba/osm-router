@@ -18,12 +18,12 @@ const isOneWay = /^(yes|true|1|-1|reverse)$/
 export class Edges {
    /** Weights assigned to node-node connections based on `RouteConfig` */
    #items: Map<number, Map<number, number>>
-   #travelMode: string
+   #travelBy: string
    #config: RouteConfig
 
-   constructor(config: RouteConfig, travelMode: string) {
+   constructor(config: RouteConfig, travelBy: string) {
       this.#items = new Map()
-      this.#travelMode = travelMode
+      this.#travelBy = travelBy
       this.#config = config
    }
 
@@ -74,9 +74,9 @@ export class Edges {
          }
 
          if (
-            this.#travelMode == TravelBy.Foot ||
+            this.#travelBy == TravelBy.Foot ||
             (isOneWay.test(oneway) &&
-               way.tags[Tag.OneWay + ':' + this.#travelMode] == 'no')
+               way.tags[Tag.OneWay + ':' + this.#travelBy] == 'no')
          ) {
             // disable one-way setting for foot traffic or explicit tag
             oneway = 'no'
