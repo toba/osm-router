@@ -1,12 +1,12 @@
 import '@toba/test'
-import { AreaData, TravelMode, WayType } from '@toba/osm-models'
+import { AreaData, TravelBy, WayType } from '@toba/osm-models'
 import { Edges } from './edges'
 import { preferences } from './config'
 import { sampleData } from './__mocks__'
 
 let osm: AreaData
 
-function getEdges(t: TravelMode, ...ways: number[]): Edges {
+function getEdges(t: TravelBy, ...ways: number[]): Edges {
    const e = new Edges(preferences[t], t)
 
    ways.forEach(id => {
@@ -27,13 +27,13 @@ it('creates weighted edges for each node in a way', () => {
       [6, [-102620]],
       [16, [-102627, -102626]]
    ]).forEach((ways, count) => {
-      const e = getEdges(TravelMode.Car, ...ways)
+      const e = getEdges(TravelBy.Car, ...ways)
       expect(e.length).toBe(count)
    })
 })
 
 it('creates one edge per connection', () => {
-   const e = getEdges(TravelMode.Car, -102645)
+   const e = getEdges(TravelBy.Car, -102645)
    const start = e.get(-102594)
    const mid = e.get(-102562)
 
@@ -47,7 +47,7 @@ it('creates one edge per connection', () => {
 })
 
 it('indicates if edge includes a node', () => {
-   const e = getEdges(TravelMode.Car, -102627, -102620, -102626)
+   const e = getEdges(TravelBy.Car, -102627, -102620, -102626)
 
    expect(e.has(-102400)).toBe(true)
    expect(e.has(-102400, -102402)).toBe(true)
@@ -59,8 +59,8 @@ it('indicates if edge includes a node', () => {
 })
 
 it('retrieves edge weight from route configuration', () => {
-   const weights = preferences[TravelMode.Car].weights
-   const e = getEdges(TravelMode.Car, -102627, -102626, -102620)
+   const weights = preferences[TravelBy.Car].weights
+   const e = getEdges(TravelBy.Car, -102627, -102626, -102620)
 
    expect(e.weight(-102400, -102402)).toBe(weights[WayType.Residential])
    expect(e.weight(-102350, -102352)).toBe(weights[WayType.Primary])
@@ -90,7 +90,7 @@ it('retrieves edge weight from route configuration', () => {
 // });
 
 it('iterates all edges starting with a node', () => {
-   const e = getEdges(TravelMode.Car, -102645)
+   const e = getEdges(TravelBy.Car, -102645)
    const fn = jest.fn()
 
    expect(e.length).toBe(5)
@@ -99,8 +99,8 @@ it('iterates all edges starting with a node', () => {
 })
 
 it('maps edges to an array', () => {
-   const weights = preferences[TravelMode.Car].weights
-   const e = getEdges(TravelMode.Car, -102622, -102624, -102626)
+   const weights = preferences[TravelBy.Car].weights
+   const e = getEdges(TravelBy.Car, -102622, -102624, -102626)
    const fn = jest.fn()
 
    expect(e.length).toBe(7)

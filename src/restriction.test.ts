@@ -1,5 +1,5 @@
 import '@toba/test'
-import { Tag, WayType, TagMap, AreaData, TravelMode } from '@toba/osm-models'
+import { Tag, WayType, TagMap, AreaData, TravelBy } from '@toba/osm-models'
 import { forEach, reverse } from '@toba/node-tools'
 import { allowTravelMode, Restrictions } from './restriction'
 import { preferences } from './config'
@@ -7,7 +7,7 @@ import { sampleData } from './__mocks__'
 
 let osm: AreaData
 
-function getRestrictions(t: TravelMode): Restrictions {
+function getRestrictions(t: TravelBy): Restrictions {
    const config = preferences[t]
    const r = new Restrictions(config, t)
    forEach(osm.relations, rel => r.fromRelation(rel))
@@ -29,8 +29,8 @@ it('checks if travel mode is allowed in way', () => {
 })
 
 it('disallows nodes based on turn restrictions', () => {
-   const car = getRestrictions(TravelMode.Car)
-   const bus = getRestrictions(TravelMode.Bus)
+   const car = getRestrictions(TravelBy.Car)
+   const bus = getRestrictions(TravelBy.Bus)
 
    // from relation -102651
    expect(car.forbids([-102530, -102522, -102476])).toBe(true)
@@ -49,7 +49,7 @@ it('disallows nodes based on turn restrictions', () => {
 })
 
 it('requires nodes based on only_ rule', () => {
-   const r = getRestrictions(TravelMode.Car)
+   const r = getRestrictions(TravelBy.Car)
    const pattern = [-102472, -102478]
    const required = [
       -102508,

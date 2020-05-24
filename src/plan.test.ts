@@ -1,5 +1,5 @@
 import '@toba/test'
-import { AreaData, TravelMode, Node } from '@toba/osm-models'
+import { AreaData, TravelBy, Node } from '@toba/osm-models'
 import { sampleData } from './__mocks__'
 import { Edges } from './edges'
 import { Plan } from './plan'
@@ -8,7 +8,7 @@ import { Restrictions } from './restriction'
 
 let osm: AreaData
 
-function getPlan(t: TravelMode): Plan {
+function getPlan(t: TravelBy): Plan {
    const config = preferences[t]
    const e = new Edges(config, t)
    const nodes = new Map<number, Node>()
@@ -21,7 +21,7 @@ function getPlan(t: TravelMode): Plan {
 beforeAll(async () => (osm = await sampleData()))
 
 it('initializes plan', async () => {
-   const p = getPlan(TravelMode.Car)
+   const p = getPlan(TravelBy.Car)
 
    expect(p.edges.length).toBe(178)
    // same start/end node is not valid

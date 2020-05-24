@@ -1,11 +1,11 @@
 import '@toba/test'
-import { TravelMode, Point } from '@toba/osm-models'
+import { TravelBy, Point } from '@toba/osm-models'
 import { Status } from './types'
 import { Router } from './router'
 import { sampleData } from './__mocks__'
 
-const carRoute = new Router(TravelMode.Car)
-const busRoute = new Router(TravelMode.Bus)
+const carRoute = new Router(TravelBy.Car)
+const busRoute = new Router(TravelBy.Bus)
 const p1 = [53.7926757, 21.5732485] as Point
 const p2 = [53.799199, 21.5726826] as Point
 

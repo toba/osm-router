@@ -1,9 +1,9 @@
-import { TravelMode, WayType, Tag } from '@toba/osm-models'
+import { TravelBy, WayType, Tag } from '@toba/osm-models'
 import { RouteMode } from './types'
 
 export const preferences: RouteMode = {
-   [TravelMode.Car]: {
-      name: TravelMode.Car,
+   [TravelBy.Car]: {
+      name: TravelBy.Car,
       weights: {
          [WayType.Freeway]: 10,
          [WayType.Trunk]: 10,
@@ -17,8 +17,8 @@ export const preferences: RouteMode = {
       },
       canUse: [Tag.Access, Tag.Vehicle, Tag.MotorVehicle, Tag.MotorCar]
    },
-   [TravelMode.Bus]: {
-      name: TravelMode.Bus,
+   [TravelBy.Bus]: {
+      name: TravelBy.Bus,
       weights: {
          [WayType.Freeway]: 10,
          [WayType.Trunk]: 10,
@@ -38,8 +38,8 @@ export const preferences: RouteMode = {
          Tag.Bus
       ]
    },
-   [TravelMode.Bicycle]: {
-      name: TravelMode.Bicycle,
+   [TravelBy.Bicycle]: {
+      name: TravelBy.Bicycle,
       weights: {
          [WayType.Trunk]: 0.05,
          [WayType.Primary]: 0.3,
@@ -57,8 +57,8 @@ export const preferences: RouteMode = {
       },
       canUse: [Tag.Access, Tag.Vehicle, Tag.Bicycle]
    },
-   [TravelMode.Horse]: {
-      name: TravelMode.Horse,
+   [TravelBy.Horse]: {
+      name: TravelBy.Horse,
       weights: {
          [WayType.Primary]: 0.05,
          [WayType.Secondary]: 0.15,
@@ -74,16 +74,16 @@ export const preferences: RouteMode = {
       },
       canUse: [Tag.Access, Tag.Horse]
    },
-   [TravelMode.Tram]: {
-      name: TravelMode.Tram,
+   [TravelBy.Tram]: {
+      name: TravelBy.Tram,
       weights: {
          [WayType.Tram]: 1,
          [WayType.LightRail]: 1
       },
       canUse: [Tag.Access]
    },
-   [TravelMode.Train]: {
-      name: TravelMode.Train,
+   [TravelBy.Train]: {
+      name: TravelBy.Train,
       weights: {
          [WayType.Rail]: 1,
          [WayType.LightRail]: 1,

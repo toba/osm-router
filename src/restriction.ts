@@ -1,5 +1,5 @@
 import { intersects, forEach } from '@toba/node-tools'
-import { Relation, Tag, TravelMode, TagMap } from '@toba/osm-models'
+import { Relation, Tag, TravelBy, TagMap } from '@toba/osm-models'
 import { RouteConfig } from './types'
 import { Sequence } from './sequence'
 
@@ -95,7 +95,7 @@ export class Restrictions {
       const travelModeRestriction = Tag.Restriction + ':' + this.#travelMode
 
       if (
-         this.#travelMode == TravelMode.Walk &&
+         this.#travelMode == TravelBy.Foot &&
          r.tags[Tag.Type] != travelModeRestriction &&
          !(travelModeRestriction in r.tags)
       ) {

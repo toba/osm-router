@@ -1,6 +1,6 @@
 import { measure } from '@toba/map'
 import { is, forEach, clone } from '@toba/node-tools'
-import { TravelMode, Node, AreaData, Point } from '@toba/osm-models'
+import { TravelBy, Node, AreaData, Point } from '@toba/osm-models'
 import { RouteConfig, Status } from './types'
 import { tiles } from './tile'
 import { preferences } from './config'
@@ -28,7 +28,7 @@ export class Router {
    #config: RouteConfig
 
    constructor(
-      configOrMode: RouteConfig | TravelMode,
+      configOrMode: RouteConfig | TravelBy,
       refreshDataAfterDays = 5
    ) {
       this.#nodes = new Map()

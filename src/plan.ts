@@ -20,7 +20,7 @@ export interface Route {
     */
    required: number[]
    /**
-    * Rinal route node. This will not be the target end node until the route is
+    * Final route node. This will not be the target end node until the route is
     * complete.
     */
    endNode: number
