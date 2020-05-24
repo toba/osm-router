@@ -42,11 +42,11 @@ export class Restrictions {
    #required: Map<string, number[]>
    /** Node sequences forbidden by relation restrictions */
    #forbidden: Set<string>
-   #travelMode: string
+   #travelBy: string
    #config: RouteConfig
 
-   constructor(config: RouteConfig, travelMode: string) {
-      this.#travelMode = travelMode
+   constructor(config: RouteConfig, travelBy: string) {
+      this.#travelBy = travelBy
       this.#config = config
       this.#required = new Map()
       this.#forbidden = new Set()
@@ -92,10 +92,10 @@ export class Restrictions {
       // ignore restrictions if usable access is specifically exempted
       if (intersects(exceptions, this.#config.canUse)) return null
 
-      const travelModeRestriction = Tag.Restriction + ':' + this.#travelMode
+      const travelModeRestriction = Tag.Restriction + ':' + this.#travelBy
 
       if (
-         this.#travelMode == TravelBy.Foot &&
+         this.#travelBy == TravelBy.Foot &&
          r.tags[Tag.Type] != travelModeRestriction &&
          !(travelModeRestriction in r.tags)
       ) {

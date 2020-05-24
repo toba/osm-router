@@ -24,7 +24,7 @@ export class Router {
    #rules: Restrictions
    /** All known OSM nodes keyed to their ID */
    #nodes: Map<number, Node>
-   #travelMode: string
+   #travelBy: string
    #config: RouteConfig
 
    constructor(
@@ -34,15 +34,15 @@ export class Router {
       this.#nodes = new Map()
 
       if (is.object<RouteConfig>(configOrMode)) {
-         this.#travelMode = configOrMode.name
+         this.#travelBy = configOrMode.name
          this.#config = clone(configOrMode)
       } else {
-         this.#travelMode = configOrMode
-         this.#config = clone(preferences[this.#travelMode])
+         this.#travelBy = configOrMode
+         this.#config = clone(preferences[this.#travelBy])
       }
 
-      this.#edges = new Edges(this.#config, this.#travelMode)
-      this.#rules = new Restrictions(this.#config, this.#travelMode)
+      this.#edges = new Edges(this.#config, this.#travelBy)
+      this.#rules = new Restrictions(this.#config, this.#travelBy)
 
       tiles.cacheHours = refreshDataAfterDays * 24
    }
